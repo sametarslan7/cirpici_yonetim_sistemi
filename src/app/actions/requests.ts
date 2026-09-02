@@ -62,6 +62,14 @@ export async function submitWeeklyRequest(
           "Geçen hafta Cumartesi çalıştığınız için bu haftanın Pazartesi günü otomatik izinlidir; bu alan değiştirilemez. Lütfen sayfayı yenileyip tekrar deneyin.",
       };
     }
+    // Geçen hafta Cumartesi çalışan kişi, bu hafta tekrar Cumartesi çalışamaz;
+    // sıra diğer 4 arkadaşına geçmelidir.
+    if (workingSaturday) {
+      return {
+        error:
+          "Geçen hafta Cumartesi çalıştığınız için bu hafta Cumartesi çalışamazsınız; sıranın diğer arkadaşlarınıza geçmesi gerekiyor.",
+      };
+    }
   } else if (offCount > 0) {
     return {
       error:

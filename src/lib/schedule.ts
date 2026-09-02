@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getWeekDates, formatISODate } from "@/lib/week";
-import { getNewTeamWeekOffs } from "@/lib/rotation";
+import { getNewTeamWeekOffs, getMondayCompOffEmployeeId } from "@/lib/rotation";
 import type { ShiftType } from "@prisma/client";
 
 export type DayCell = {
@@ -44,6 +44,12 @@ export async function getApprovedWeekSchedule(weekStart: Date): Promise<Schedule
   });
   const statusByEmployee = new Map(allRequestsThisWeek.map((r) => [r.employeeId, r.status]));
 
+  // Cumartesi mesaisinin telafisi: bir önceki hafta onaylı Cumartesi çalışan
+  // kişi varsa, bu haftanın Pazartesi'si o kişi için otomatik izinlidir —
+  // kendisi henüz bu haftanın talebini göndermemiş/onaylanmamış olsa bile
+  // çizelgede görünmesi gerekir.
+  const mondayCompOffEmployeeId = await getMondayCompOffEmployeeId(weekStart);
+
   const veteranRows: ScheduleRow[] = veterans.map((emp) => {
     const req = requestByEmployee.get(emp.id);
     const days: (DayCell | null)[] = dateKeys.map((key) => {
@@ -56,6 +62,9 @@ export async function getApprovedWeekSchedule(weekStart: Date): Promise<Schedule
         isSaturday: entry.isSaturday,
       };
     });
+    if (emp.id === mondayCompOffEmployeeId) {
+      days[0] = { shift: "OFF", time: shiftTime("OFF"), isSaturday: false };
+    }
     return {
       employeeId: emp.id,
       name: emp.name,

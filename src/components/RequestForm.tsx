@@ -36,7 +36,9 @@ export default function RequestForm({
   const [shifts, setShifts] = useState<ShiftType[]>(
     mondayCompOffLocked ? initialShifts.map((s, i) => (i === 0 ? "OFF" : s)) : initialShifts
   );
-  const [workingSaturday, setWorkingSaturday] = useState(initialWorkingSaturday);
+  const [workingSaturday, setWorkingSaturday] = useState(
+    mondayCompOffLocked ? false : initialWorkingSaturday
+  );
 
   function setShift(dayIndex: number, shift: ShiftType) {
     setShifts((prev) => {
@@ -138,7 +140,7 @@ export default function RequestForm({
             type="checkbox"
             name="workingSaturday"
             checked={workingSaturday}
-            disabled={locked || !!saturdayLockedByOther}
+            disabled={locked || !!saturdayLockedByOther || mondayCompOffLocked}
             onChange={(e) => toggleSaturday(e.target.checked)}
             className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
           />
@@ -146,20 +148,29 @@ export default function RequestForm({
             <span className="font-medium text-slate-800">
               Bu hafta Cumartesi (08:00-17:00) çalışacağım
             </span>
-            {isSuggestedForSaturday && !saturdayLockedByOther && (
+            {isSuggestedForSaturday && !saturdayLockedByOther && !mondayCompOffLocked && (
               <span className="ml-2 rounded-full bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700">
                 Rotasyon sırası sizde
               </span>
             )}
-            {saturdayLockedByOther && (
+            {mondayCompOffLocked ? (
               <p className="mt-1 text-xs text-rose-600">
-                Bu hafta Cumartesi vardiyası {saturdayLockedByOther} tarafından seçildi.
+                Geçen hafta Cumartesi çalıştığınız için bu hafta Cumartesi
+                çalışamazsınız; sıranın diğer arkadaşlarınıza geçmesi gerekiyor.
               </p>
+            ) : (
+              <>
+                {saturdayLockedByOther && (
+                  <p className="mt-1 text-xs text-rose-600">
+                    Bu hafta Cumartesi vardiyası {saturdayLockedByOther} tarafından seçildi.
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-slate-400">
+                  Bu hafta izin hakkınız yoktur; karşılığında bir sonraki haftanın
+                  Pazartesi günü otomatik izinli olursunuz.
+                </p>
+              </>
             )}
-            <p className="mt-1 text-xs text-slate-400">
-              Bu hafta izin hakkınız yoktur; karşılığında bir sonraki haftanın
-              Pazartesi günü otomatik izinli olursunuz.
-            </p>
           </span>
         </label>
       </div>
