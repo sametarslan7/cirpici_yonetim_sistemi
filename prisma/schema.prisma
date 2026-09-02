@@ -1,15 +1,16 @@
 // Çırpıcı Spor Sağlığı ve Performans Merkezi — Vardiya Planlama
-// Not: Geliştirme ortamında SQLite kullanıyoruz. Vercel'e canlıya alırken
-// provider'ı "postgresql" yapıp DATABASE_URL'i Marketplace'ten alınan
-// Postgres bağlantısıyla değiştirmemiz yeterli (npx prisma migrate deploy).
+// Canlıda Vercel Marketplace üzerinden bağlanan Neon Postgres kullanılıyor.
+// DATABASE_URL: pgbouncer'lı (pooled) bağlantı — uygulama bunu kullanır.
+// DATABASE_URL_UNPOOLED: doğrudan bağlantı — migration'lar bunu kullanır.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 enum Role {
