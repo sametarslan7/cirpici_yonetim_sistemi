@@ -1,0 +1,98 @@
+// Çırpıcı Spor Sağlığı ve Performans Merkezi — Vardiya Planlama
+// Not: Geliştirme ortamında SQLite kullanıyoruz. Vercel'e canlıya alırken
+// provider'ı "postgresql" yapıp DATABASE_URL'i Marketplace'ten alınan
+// Postgres bağlantısıyla değiştirmemiz yeterli (npx prisma migrate deploy).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  MANAGER // Mahsum Akikol
+  VETERAN // Eski ekip - 5 kişi, talep girer
+  NEW // Yeni ekip - 3 kişi, saatleri sabit, talep giremez
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Hafta içi bir gün için seçilebilecek vardiya tipi.
+// Cumartesi de saat olarak NORMAL (08-17) ile aynı olduğu için
+// DayEntry.isSaturday alanıyla ayırt ediyoruz.
+enum ShiftType {
+  NORMAL // 08:00-17:00
+  LATE // 11:00-20:00
+  EXTRA // 08:00-20:00 (3 saat ekstra mesai)
+  OFF // izinli
+}
+
+model Employee {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  role          Role
+  // Eski ekip için Cumartesi rotasyon sırası (1-5). Yeni ekip için
+  // hafta içi izin günü rotasyon sırası (1-3). Yönetici için kullanılmaz.
+  rotationOrder Int?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  weeklyRequests    WeeklyRequest[]
+  newTeamWeekOffs   NewTeamWeekOff[]
+
+  @@index([role])
+}
+
+// Eski ekipten bir kişinin bir hafta için gönderdiği talep.
+model WeeklyRequest {
+  id              String        @id @default(cuid())
+  employeeId      String
+  employee        Employee      @relation(fields: [employeeId], references: [id])
+  weekStart       DateTime // O haftanın Pazartesi tarihi (00:00)
+  status          RequestStatus @default(PENDING)
+  workingSaturday Boolean       @default(false)
+  rejectionReason String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  days DayEntry[]
+
+  @@unique([employeeId, weekStart])
+  @@index([weekStart])
+}
+
+// Bir talebin hafta içi (Pzt-Cum) her günü + varsa Cumartesi için tek satır.
+model DayEntry {
+  id              String        @id @default(cuid())
+  weeklyRequestId String
+  weeklyRequest   WeeklyRequest @relation(fields: [weeklyRequestId], references: [id], onDelete: Cascade)
+  date            DateTime // Somut takvim tarihi
+  shift           ShiftType
+  isSaturday      Boolean       @default(false)
+
+  @@unique([weeklyRequestId, date])
+  @@index([date])
+}
+
+// Yeni ekibin (sabit saatli) o hafta hangi gün izinli olduğu.
+// Sistem rotasyonla öneri üretir, Mahsum hoca yönetici panelinden değiştirebilir.
+model NewTeamWeekOff {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  weekStart  DateTime
+  // 0=Pazartesi ... 4=Cuma
+  dayOffIndex Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([employeeId, weekStart])
+  @@index([weekStart])
+}
