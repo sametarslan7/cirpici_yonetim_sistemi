@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { formatISODate } from "@/lib/week";
+import { addDays, formatISODate } from "@/lib/week";
 
 /**
  * O hafta için Cumartesi mesaisine sırası gelen eski ekip elemanını önerir.
@@ -50,6 +50,26 @@ export async function getSaturdayTakenBy(weekStart: Date) {
     include: { employee: true },
   });
   return existing;
+}
+
+/**
+ * Cumartesi mesaisinin telafisi: bir önceki hafta Cumartesi'yi ONAYLANMIŞ
+ * olarak çalışan kişi varsa, o kişinin id'sini döner. Bu kişi için, bir
+ * sonraki haftanın Pazartesi günü otomatik ve zorunlu olarak izinlidir —
+ * kendisi o haftanın Pazartesi'sini elle seçmez, sistem belirler. Cumartesi
+ * çalıştığı haftanın kendi içinde (Pzt-Cum) izin hakkı yoktur; o hafta tam
+ * çalışır.
+ */
+export async function getMondayCompOffEmployeeId(weekStart: Date): Promise<string | null> {
+  const previousWeekStart = addDays(weekStart, -7);
+  const lastSaturdayWork = await prisma.weeklyRequest.findFirst({
+    where: {
+      weekStart: previousWeekStart,
+      workingSaturday: true,
+      status: "APPROVED",
+    },
+  });
+  return lastSaturdayWork?.employeeId ?? null;
 }
 
 /**

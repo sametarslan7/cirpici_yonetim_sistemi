@@ -1,7 +1,11 @@
 import { requireVeteran } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getUpcomingWeekStart, getWeekDates, formatISODate, formatTRDate, WEEKDAY_NAMES_TR } from "@/lib/week";
-import { suggestSaturdayEmployeeId, getSaturdayTakenBy } from "@/lib/rotation";
+import {
+  suggestSaturdayEmployeeId,
+  getSaturdayTakenBy,
+  getMondayCompOffEmployeeId,
+} from "@/lib/rotation";
 import { getLateConflictMap } from "@/lib/schedule";
 import RequestForm from "@/components/RequestForm";
 import type { ShiftType } from "@prisma/client";
@@ -16,18 +20,22 @@ export default async function TalepPage() {
     include: { days: true },
   });
 
-  const initialShifts: ShiftType[] = weekDates.slice(0, 5).map((d) => {
+  const [suggestedId, takenBy, lateConflicts, mondayCompOffEmployeeId] = await Promise.all([
+    suggestSaturdayEmployeeId(weekStart),
+    getSaturdayTakenBy(weekStart),
+    getLateConflictMap(weekStart, session.employeeId),
+    getMondayCompOffEmployeeId(weekStart),
+  ]);
+
+  const mondayCompOffLocked = mondayCompOffEmployeeId === session.employeeId;
+
+  const initialShifts: ShiftType[] = weekDates.slice(0, 5).map((d, i) => {
+    if (i === 0 && mondayCompOffLocked) return "OFF";
     const entry = existing?.days.find(
       (e) => !e.isSaturday && formatISODate(e.date) === formatISODate(d)
     );
     return entry?.shift ?? "NORMAL";
   });
-
-  const [suggestedId, takenBy, lateConflicts] = await Promise.all([
-    suggestSaturdayEmployeeId(weekStart),
-    getSaturdayTakenBy(weekStart),
-    getLateConflictMap(weekStart, session.employeeId),
-  ]);
 
   const saturdayLockedByOther =
     takenBy && takenBy.employeeId !== session.employeeId ? takenBy.employee.name : null;
@@ -62,6 +70,7 @@ export default async function TalepPage() {
         isSuggestedForSaturday={suggestedId === session.employeeId}
         lateConflicts={lateConflicts}
         locked={existing?.status === "APPROVED"}
+        mondayCompOffLocked={mondayCompOffLocked}
       />
     </div>
   );

@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireVeteran } from "@/lib/session";
 import { getUpcomingWeekStart, addDays, formatISODate, WEEKDAY_NAMES_TR } from "@/lib/week";
+import { getMondayCompOffEmployeeId } from "@/lib/rotation";
 import { revalidatePath } from "next/cache";
 import type { ShiftType } from "@prisma/client";
 
@@ -48,17 +49,23 @@ export async function submitWeeklyRequest(
     shifts.push(raw as ShiftType);
   }
 
+  // --- Pazartesi izni: sadece geçen hafta Cumartesi çalışan kişi için,
+  // otomatik ve zorunlu (kendisi seçemez, sistem belirler) ---
+  const mondayCompOffEmployeeId = await getMondayCompOffEmployeeId(weekStart);
+  const isMondayCompOff = mondayCompOffEmployeeId === session.employeeId;
   const offCount = shifts.filter((s) => s === "OFF").length;
-  if (workingSaturday && offCount !== 1) {
+
+  if (isMondayCompOff) {
+    if (shifts[0] !== "OFF" || offCount !== 1) {
+      return {
+        error:
+          "Geçen hafta Cumartesi çalıştığınız için bu haftanın Pazartesi günü otomatik izinlidir; bu alan değiştirilemez. Lütfen sayfayı yenileyip tekrar deneyin.",
+      };
+    }
+  } else if (offCount > 0) {
     return {
       error:
-        "Cumartesi çalışacaksanız, hafta içinden mecburen 1 gün izinli işaretlemeniz gerekiyor.",
-    };
-  }
-  if (!workingSaturday && offCount > 0) {
-    return {
-      error:
-        "Hafta içi izin sadece Cumartesi çalışanlar için geçerlidir. Cumartesi kutusunu işaretlemediniz.",
+        "İzin günü elle seçilemez. İzin, sadece geçen hafta Cumartesi çalışan kişi için bir sonraki haftanın Pazartesi günü sistem tarafından otomatik tanımlanır.",
     };
   }
 

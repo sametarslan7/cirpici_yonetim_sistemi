@@ -18,6 +18,7 @@ export default function RequestForm({
   isSuggestedForSaturday,
   lateConflicts,
   locked,
+  mondayCompOffLocked,
 }: {
   weekStartISO: string;
   weekDates: DayInfo[];
@@ -27,20 +28,19 @@ export default function RequestForm({
   isSuggestedForSaturday: boolean;
   lateConflicts: (string | null)[];
   locked: boolean;
+  /** Geçen hafta Cumartesi çalıştığı için bu haftanın Pazartesi günü
+   * otomatik ve zorunlu izinli olan kişi mi? (kendisi değiştiremez) */
+  mondayCompOffLocked: boolean;
 }) {
   const [state, formAction, pending] = useActionState(submitWeeklyRequest, null);
-  const [shifts, setShifts] = useState<ShiftType[]>(initialShifts);
+  const [shifts, setShifts] = useState<ShiftType[]>(
+    mondayCompOffLocked ? initialShifts.map((s, i) => (i === 0 ? "OFF" : s)) : initialShifts
+  );
   const [workingSaturday, setWorkingSaturday] = useState(initialWorkingSaturday);
 
   function setShift(dayIndex: number, shift: ShiftType) {
     setShifts((prev) => {
       const next = [...prev];
-      if (shift === "OFF") {
-        // Aynı anda sadece 1 gün izinli olabilir; diğerini normale çevir.
-        for (let i = 0; i < next.length; i++) {
-          if (i !== dayIndex && next[i] === "OFF") next[i] = "NORMAL";
-        }
-      }
       next[dayIndex] = shift;
       return next;
     });
@@ -48,13 +48,7 @@ export default function RequestForm({
 
   function toggleSaturday(checked: boolean) {
     setWorkingSaturday(checked);
-    if (!checked) {
-      // İzin sadece Cumartesi çalışanlar için geçerli; kapatınca temizle.
-      setShifts((prev) => prev.map((s) => (s === "OFF" ? "NORMAL" : s)));
-    }
   }
-
-  const offCount = shifts.filter((s) => s === "OFF").length;
 
   return (
     <form action={formAction} className="space-y-4">
@@ -70,8 +64,8 @@ export default function RequestForm({
           </thead>
           <tbody>
             {weekDates.map((day) => {
+              const isLockedMonday = day.index === 0 && mondayCompOffLocked;
               const conflictName = lateConflicts[day.index];
-              const canBeOff = workingSaturday && (shifts[day.index] === "OFF" || offCount === 0);
               return (
                 <tr key={day.index} className="border-b border-slate-100 last:border-0">
                   <td className="px-4 py-3 align-top">
@@ -79,60 +73,56 @@ export default function RequestForm({
                     <div className="text-xs text-slate-400">{day.dateLabel}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2">
-                      {SELECTABLE_SHIFTS.map((opt) => {
-                        const isLate = opt === "LATE";
-                        const disabled =
-                          locked || (isLate && !!conflictName && shifts[day.index] !== "LATE");
-                        const selected = shifts[day.index] === opt;
-                        return (
-                          <label
-                            key={opt}
-                            title={disabled && isLate ? `${conflictName} tarafından seçildi` : undefined}
-                            className={`cursor-pointer rounded-lg border px-3 py-2 text-xs font-medium transition ${
-                              selected
-                                ? SHIFT_META[opt].badge + " border-current"
-                                : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                            } ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
-                          >
-                            <input
-                              type="radio"
-                              name={`day_${day.index}`}
-                              value={opt}
-                              checked={selected}
-                              disabled={disabled}
-                              onChange={() => setShift(day.index, opt)}
-                              className="sr-only"
-                            />
-                            {SHIFT_META[opt].time}
-                          </label>
-                        );
-                      })}
-                      {workingSaturday && (
-                        <label
-                          className={`cursor-pointer rounded-lg border px-3 py-2 text-xs font-medium transition ${
-                            shifts[day.index] === "OFF"
-                              ? SHIFT_META.OFF.badge + " border-current"
-                              : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                          } ${locked || !canBeOff ? "cursor-not-allowed opacity-40" : ""}`}
+                    {isLockedMonday ? (
+                      <>
+                        <input type="hidden" name={`day_${day.index}`} value="OFF" />
+                        <span
+                          className={`inline-flex rounded-lg border px-3 py-2 text-xs font-medium ${SHIFT_META.OFF.badge}`}
                         >
-                          <input
-                            type="radio"
-                            name={`day_${day.index}`}
-                            value="OFF"
-                            checked={shifts[day.index] === "OFF"}
-                            disabled={locked || !canBeOff}
-                            onChange={() => setShift(day.index, "OFF")}
-                            className="sr-only"
-                          />
                           İzinli
-                        </label>
-                      )}
-                    </div>
-                    {conflictName && shifts[day.index] !== "LATE" && (
-                      <p className="mt-1 text-[11px] text-slate-400">
-                        11:00-20:00: {conflictName} tarafından seçildi
-                      </p>
+                        </span>
+                        <p className="mt-1 text-[11px] text-slate-400">
+                          Geçen hafta Cumartesi çalıştığınız için otomatik izinli.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap gap-2">
+                          {SELECTABLE_SHIFTS.map((opt) => {
+                            const isLate = opt === "LATE";
+                            const disabled =
+                              locked || (isLate && !!conflictName && shifts[day.index] !== "LATE");
+                            const selected = shifts[day.index] === opt;
+                            return (
+                              <label
+                                key={opt}
+                                title={disabled && isLate ? `${conflictName} tarafından seçildi` : undefined}
+                                className={`cursor-pointer rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                                  selected
+                                    ? SHIFT_META[opt].badge + " border-current"
+                                    : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                                } ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
+                              >
+                                <input
+                                  type="radio"
+                                  name={`day_${day.index}`}
+                                  value={opt}
+                                  checked={selected}
+                                  disabled={disabled}
+                                  onChange={() => setShift(day.index, opt)}
+                                  className="sr-only"
+                                />
+                                {SHIFT_META[opt].time}
+                              </label>
+                            );
+                          })}
+                        </div>
+                        {conflictName && shifts[day.index] !== "LATE" && (
+                          <p className="mt-1 text-[11px] text-slate-400">
+                            11:00-20:00: {conflictName} tarafından seçildi
+                          </p>
+                        )}
+                      </>
                     )}
                   </td>
                 </tr>
@@ -167,7 +157,8 @@ export default function RequestForm({
               </p>
             )}
             <p className="mt-1 text-xs text-slate-400">
-              İşaretlerseniz hafta içinden 1 günü izinli seçmeniz gerekir.
+              Bu hafta izin hakkınız yoktur; karşılığında bir sonraki haftanın
+              Pazartesi günü otomatik izinli olursunuz.
             </p>
           </span>
         </label>
