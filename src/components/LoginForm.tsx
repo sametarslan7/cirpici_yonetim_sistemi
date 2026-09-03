@@ -3,12 +3,16 @@
 import { useActionState, useState } from "react";
 import { loginEmployee, loginManager } from "@/app/actions/auth";
 
+type Manager = { id: string; name: string };
+
 export default function LoginForm({
   veterans,
+  managers,
 }: {
   veterans: { id: string; name: string }[];
+  managers: readonly Manager[];
 }) {
-  const [mode, setMode] = useState<"select" | "manager">("select");
+  const [managerId, setManagerId] = useState<string | null>(null);
   const [employeeState, employeeAction, employeePending] = useActionState(
     loginEmployee,
     null
@@ -18,12 +22,15 @@ export default function LoginForm({
     null
   );
 
-  if (mode === "manager") {
+  const activeManager = managers.find((m) => m.id === managerId);
+
+  if (activeManager) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-800">Yönetici Girişi</h2>
-        <p className="mt-1 text-xs text-slate-500">Mahsum Akikol</p>
+        <p className="mt-1 text-xs text-slate-500">{activeManager.name}</p>
         <form action={managerAction} className="mt-4 space-y-3">
+          <input type="hidden" name="managerId" value={activeManager.id} />
           <input
             type="password"
             name="password"
@@ -44,7 +51,7 @@ export default function LoginForm({
         </form>
         <button
           type="button"
-          onClick={() => setMode("select")}
+          onClick={() => setManagerId(null)}
           className="mt-3 text-xs text-slate-500 hover:text-slate-700"
         >
           ← Personel listesine dön
@@ -75,18 +82,21 @@ export default function LoginForm({
         <p className="text-sm text-rose-600">{employeeState.error}</p>
       )}
 
-      <button
-        type="button"
-        onClick={() => setMode("manager")}
-        className="flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-left shadow-sm transition hover:border-teal-300 hover:bg-teal-50"
-      >
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-100 text-sm font-semibold text-teal-700">
-          M
-        </span>
-        <span className="text-sm font-medium text-slate-800">
-          Mahsum Akikol <span className="text-slate-400">(Yönetici)</span>
-        </span>
-      </button>
+      {managers.map((manager) => (
+        <button
+          key={manager.id}
+          type="button"
+          onClick={() => setManagerId(manager.id)}
+          className="flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-left shadow-sm transition hover:border-teal-300 hover:bg-teal-50"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-100 text-sm font-semibold text-teal-700">
+            {manager.name.charAt(0)}
+          </span>
+          <span className="text-sm font-medium text-slate-800">
+            {manager.name} <span className="text-slate-400">(Yönetici)</span>
+          </span>
+        </button>
+      ))}
     </div>
   );
 }

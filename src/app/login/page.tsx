@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import LoginForm from "@/components/LoginForm";
+import { MANAGERS } from "@/lib/constants";
 
 export default async function LoginPage() {
   const veterans = await prisma.employee.findMany({
@@ -15,7 +16,7 @@ export default async function LoginPage() {
         Çırpıcı Sporcu Sağlığı ve Performans Merkezi — Vardiya Sistemi
       </p>
       <div className="mt-8 w-full">
-        <LoginForm veterans={veterans} />
+        <LoginForm veterans={veterans} managers={MANAGERS} />
       </div>
     </div>
   );

@@ -2,8 +2,14 @@
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
-import { MANAGER_NAME } from "@/lib/constants";
+import { MANAGERS } from "@/lib/constants";
 import { redirect } from "next/navigation";
+
+// Her yöneticinin şifresi kendi ortam değişkeninde tutulur.
+const MANAGER_PASSWORDS: Record<string, string | undefined> = {
+  mahsum: process.env.MANAGER_PASSWORD,
+  osman: process.env.MANAGER2_PASSWORD,
+};
 
 export type AuthActionState = { error?: string } | null;
 
@@ -32,14 +38,17 @@ export async function loginManager(
   _prevState: AuthActionState,
   formData: FormData
 ): Promise<AuthActionState> {
+  const managerId = String(formData.get("managerId") ?? "");
   const password = String(formData.get("password") ?? "");
-  if (password !== process.env.MANAGER_PASSWORD) {
+
+  const manager = MANAGERS.find((m) => m.id === managerId);
+  if (!manager || !password || password !== MANAGER_PASSWORDS[managerId]) {
     return { error: "Şifre hatalı." };
   }
 
   const session = await getSession();
   session.employeeId = undefined;
-  session.name = MANAGER_NAME;
+  session.name = manager.name;
   session.role = "MANAGER";
   await session.save();
 

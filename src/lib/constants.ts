@@ -2,6 +2,13 @@ import type { ShiftType } from "@prisma/client";
 
 export const MANAGER_NAME = "Mahsum Akikol";
 
+// Birden fazla yönetici desteklenir; her birinin kendi şifresi
+// ayrı bir ortam değişkeninde tutulur (bkz. src/app/actions/auth.ts).
+export const MANAGERS = [
+  { id: "mahsum", name: "Mahsum Akikol" },
+  { id: "osman", name: "Osman Ateş" },
+] as const;
+
 export const SHIFT_META: Record<
   ShiftType,
   { time: string; label: string; badge: string; dot: string }

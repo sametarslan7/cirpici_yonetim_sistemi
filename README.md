@@ -5,7 +5,7 @@ yönetici onayı ve mesai raporlama sistemi.
 
 ## Ekip
 
-- **Yönetici:** Mahsum Akikol (şifre: `6134`)
+- **Yönetici:** Mahsum Akikol (şifre: `6134`), Osman Ateş (şifre: `1517`)
 - **Eski Ekip (talep girer):** Beren Ersan, Nurhan Elif Meriç, Nur Sena Öztürk, Berke Ünay, Mertcan Kara
 - **Yeni Ekip (sabit, giriş yapmaz):** Duhan Batıkan, Minel, Bora
 
@@ -27,6 +27,7 @@ Tarayıcıda [http://localhost:3000](http://localhost:3000) adresine gidin.
 | `DATABASE_URL` | Veritabanı bağlantısı. Yerelde SQLite (`file:./dev.db`), canlıda Postgres. |
 | `SESSION_SECRET` | Oturum çerezini şifrelemek için en az 32 karakterlik gizli anahtar. |
 | `MANAGER_PASSWORD` | Mahsum hocanın giriş şifresi. |
+| `MANAGER2_PASSWORD` | Osman hocanın giriş şifresi. |
 
 ## Canlıya Alma (Vercel)
 
