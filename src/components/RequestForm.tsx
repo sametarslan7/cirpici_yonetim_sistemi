@@ -15,7 +15,6 @@ export default function RequestForm({
   initialShifts,
   initialWorkingSaturday,
   saturdayLockedByOther,
-  isSuggestedForSaturday,
   lateConflicts,
   locked,
   mondayCompOffLocked,
@@ -25,7 +24,6 @@ export default function RequestForm({
   initialShifts: ShiftType[];
   initialWorkingSaturday: boolean;
   saturdayLockedByOther: string | null;
-  isSuggestedForSaturday: boolean;
   lateConflicts: (string | null)[];
   locked: boolean;
   /** Geçen hafta Cumartesi çalıştığı için bu haftanın Pazartesi günü
@@ -148,11 +146,6 @@ export default function RequestForm({
             <span className="font-medium text-slate-800">
               Bu hafta Cumartesi (08:00-17:00) çalışacağım
             </span>
-            {isSuggestedForSaturday && !saturdayLockedByOther && !mondayCompOffLocked && (
-              <span className="ml-2 rounded-full bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700">
-                Rotasyon sırası sizde
-              </span>
-            )}
             {mondayCompOffLocked ? (
               <p className="mt-1 text-xs text-rose-600">
                 Geçen hafta Cumartesi çalıştığınız için bu hafta Cumartesi

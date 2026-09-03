@@ -3,40 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { addDays, formatISODate } from "@/lib/week";
 
 /**
- * O hafta için Cumartesi mesaisine sırası gelen eski ekip elemanını önerir.
- * Kurallar:
- *  - Eski ekip rotationOrder'a göre sıralanır (1..5).
- *  - En son onaylanmış Cumartesi kaydına bakılır, sıradaki kişi önerilir.
- *  - Hiç kayıt yoksa ilk kişi (rotationOrder=1) önerilir.
- */
-export async function suggestSaturdayEmployeeId(weekStart: Date): Promise<string | null> {
-  const veterans = await prisma.employee.findMany({
-    where: { role: "VETERAN", active: true },
-    orderBy: { rotationOrder: "asc" },
-  });
-  if (veterans.length === 0) return null;
-
-  const lastAssignment = await prisma.weeklyRequest.findFirst({
-    where: {
-      workingSaturday: true,
-      status: "APPROVED",
-      weekStart: { lt: weekStart },
-    },
-    orderBy: { weekStart: "desc" },
-    include: { employee: true },
-  });
-
-  if (!lastAssignment || lastAssignment.employee.rotationOrder == null) {
-    return veterans[0].id;
-  }
-
-  const currentOrder = lastAssignment.employee.rotationOrder;
-  const nextOrder = (currentOrder % veterans.length) + 1;
-  const next = veterans.find((v) => v.rotationOrder === nextOrder);
-  return next?.id ?? veterans[0].id;
-}
-
-/**
  * O hafta zaten Cumartesi'yi Mahsum hocanın onayladığı/bekleyen biri varsa
  * onun id'sini döndürür (varsa formda onu göstermek/kilitlemek için).
  */

@@ -2,7 +2,6 @@ import { requireVeteran } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getUpcomingWeekStart, getWeekDates, formatISODate, formatTRDate, WEEKDAY_NAMES_TR } from "@/lib/week";
 import {
-  suggestSaturdayEmployeeId,
   getSaturdayTakenBy,
   getMondayCompOffEmployeeId,
 } from "@/lib/rotation";
@@ -20,8 +19,7 @@ export default async function TalepPage() {
     include: { days: true },
   });
 
-  const [suggestedId, takenBy, lateConflicts, mondayCompOffEmployeeId] = await Promise.all([
-    suggestSaturdayEmployeeId(weekStart),
+  const [takenBy, lateConflicts, mondayCompOffEmployeeId] = await Promise.all([
     getSaturdayTakenBy(weekStart),
     getLateConflictMap(weekStart, session.employeeId),
     getMondayCompOffEmployeeId(weekStart),
@@ -40,8 +38,7 @@ export default async function TalepPage() {
   const saturdayLockedByOther =
     takenBy && takenBy.employeeId !== session.employeeId ? takenBy.employee.name : null;
 
-  const initialWorkingSaturday =
-    existing?.workingSaturday ?? (!saturdayLockedByOther && suggestedId === session.employeeId);
+  const initialWorkingSaturday = existing?.workingSaturday ?? false;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
@@ -67,7 +64,6 @@ export default async function TalepPage() {
         initialShifts={initialShifts}
         initialWorkingSaturday={initialWorkingSaturday}
         saturdayLockedByOther={saturdayLockedByOther}
-        isSuggestedForSaturday={suggestedId === session.employeeId}
         lateConflicts={lateConflicts}
         locked={existing?.status === "APPROVED"}
         mondayCompOffLocked={mondayCompOffLocked}
