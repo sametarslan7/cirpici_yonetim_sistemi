@@ -58,6 +58,9 @@ function Row({
         </button>
       </div>
       {state?.error && <p className="w-full text-xs text-rose-600">{state.error}</p>}
+      {state?.success && !pending && (
+        <p className="w-full text-xs font-medium text-emerald-600">✓ Kaydedildi</p>
+      )}
     </form>
   );
 }
