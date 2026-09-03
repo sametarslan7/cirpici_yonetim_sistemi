@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 const MANAGER_PASSWORDS: Record<string, string | undefined> = {
   mahsum: process.env.MANAGER_PASSWORD,
   osman: process.env.MANAGER2_PASSWORD,
+  kubilay: process.env.MANAGER3_PASSWORD,
 };
 
 export type AuthActionState = { error?: string } | null;

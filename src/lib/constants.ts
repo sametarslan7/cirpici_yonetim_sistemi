@@ -7,6 +7,7 @@ export const MANAGER_NAME = "Mahsum Akikol";
 export const MANAGERS = [
   { id: "mahsum", name: "Mahsum Akikol" },
   { id: "osman", name: "Osman Ateş" },
+  { id: "kubilay", name: "Kubilay Topçuoğlu" },
 ] as const;
 
 export const SHIFT_META: Record<

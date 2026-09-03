@@ -5,7 +5,8 @@ yönetici onayı ve mesai raporlama sistemi.
 
 ## Ekip
 
-- **Yönetici:** Mahsum Akikol (şifre: `6134`), Osman Ateş (şifre: `1517`)
+- **Yönetici:** Mahsum Akikol (şifre: `6134`), Osman Ateş (şifre: `1517`),
+  Kubilay Topçuoğlu (şifre: `5133`)
 - **Eski Ekip (talep girer, her biri kendi şifresiyle giriş yapar):**
   Beren Ersan (`2562`), Nurhan Elif Meriç (`6139`), Nur Sena Öztürk (`8157`),
   Berke Ünay (`6918`), Mertcan Kara (`9689`)
@@ -30,6 +31,7 @@ Tarayıcıda [http://localhost:3000](http://localhost:3000) adresine gidin.
 | `SESSION_SECRET` | Oturum çerezini şifrelemek için en az 32 karakterlik gizli anahtar. |
 | `MANAGER_PASSWORD` | Mahsum hocanın giriş şifresi. |
 | `MANAGER2_PASSWORD` | Osman hocanın giriş şifresi. |
+| `MANAGER3_PASSWORD` | Kubilay hocanın giriş şifresi. |
 
 ## Canlıya Alma (Vercel)
 
