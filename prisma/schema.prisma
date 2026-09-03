@@ -39,6 +39,9 @@ model Employee {
   id            String   @id @default(cuid())
   name          String   @unique
   role          Role
+  // Eski ekip için giriş şifresi (yönetici şifreleri ortam değişkeninde
+  // tutulur, bu alan yalnızca VETERAN rolü içindir).
+  password      String?
   // Eski ekip için Cumartesi rotasyon sırası (1-5). Yeni ekip için
   // hafta içi izin günü rotasyon sırası (1-3). Yönetici için kullanılmaz.
   rotationOrder Int?

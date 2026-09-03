@@ -3,11 +3,11 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 const VETERANS = [
-  "Beren Ersan",
-  "Nurhan Elif Meriç",
-  "Nur Sena Öztürk",
-  "Berke Ünay",
-  "Mertcan Kara",
+  { name: "Beren Ersan", password: "2562" },
+  { name: "Nurhan Elif Meriç", password: "6139" },
+  { name: "Nur Sena Öztürk", password: "8157" },
+  { name: "Berke Ünay", password: "6918" },
+  { name: "Mertcan Kara", password: "9689" },
 ];
 
 const NEW_TEAM = ["Duhan Batıkan", "Minel", "Bora"];
@@ -20,10 +20,11 @@ async function main() {
   });
 
   for (let i = 0; i < VETERANS.length; i++) {
+    const { name, password } = VETERANS[i];
     await prisma.employee.upsert({
-      where: { name: VETERANS[i] },
-      create: { name: VETERANS[i], role: "VETERAN", rotationOrder: i + 1 },
-      update: { role: "VETERAN", rotationOrder: i + 1, active: true },
+      where: { name },
+      create: { name, role: "VETERAN", rotationOrder: i + 1, password },
+      update: { role: "VETERAN", rotationOrder: i + 1, active: true, password },
     });
   }
 

@@ -18,11 +18,15 @@ export async function loginEmployee(
   formData: FormData
 ): Promise<AuthActionState> {
   const employeeId = String(formData.get("employeeId") ?? "");
+  const password = String(formData.get("password") ?? "");
   if (!employeeId) return { error: "Lütfen listeden bir isim seçin." };
 
   const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
   if (!employee || employee.role !== "VETERAN" || !employee.active) {
     return { error: "Geçersiz kullanıcı." };
+  }
+  if (!password || password !== employee.password) {
+    return { error: "Şifre hatalı." };
   }
 
   const session = await getSession();

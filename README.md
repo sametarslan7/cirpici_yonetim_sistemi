@@ -6,7 +6,9 @@ yönetici onayı ve mesai raporlama sistemi.
 ## Ekip
 
 - **Yönetici:** Mahsum Akikol (şifre: `6134`), Osman Ateş (şifre: `1517`)
-- **Eski Ekip (talep girer):** Beren Ersan, Nurhan Elif Meriç, Nur Sena Öztürk, Berke Ünay, Mertcan Kara
+- **Eski Ekip (talep girer, her biri kendi şifresiyle giriş yapar):**
+  Beren Ersan (`2562`), Nurhan Elif Meriç (`6139`), Nur Sena Öztürk (`8157`),
+  Berke Ünay (`6918`), Mertcan Kara (`9689`)
 - **Yeni Ekip (sabit, giriş yapmaz):** Duhan Batıkan, Minel, Bora
 
 ## Yerelde Çalıştırma
