@@ -15,8 +15,10 @@ datasource db {
 
 enum Role {
   MANAGER // Mahsum Akikol
-  VETERAN // Eski ekip - 5 kişi, talep girer
-  NEW // Yeni ekip - 3 kişi, saatleri sabit, talep giremez
+  VETERAN // Fizyoterapist - eski ekip, 5 kişi, talep girer
+  NEW // Fizyoterapist - yeni ekip, 3 kişi, saatleri sabit, talep giremez
+  SAGLIKCI // Sağlık ekibi (diyetisyen, psikolog, hemşire, masör vb.)
+  ANTRENOR // Antrenör ekibi
 }
 
 enum RequestStatus {

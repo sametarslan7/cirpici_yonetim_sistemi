@@ -3,18 +3,19 @@
 import { useActionState, useState } from "react";
 import { loginEmployee, loginManager } from "@/app/actions/auth";
 
-type Manager = { id: string; name: string };
-type Veteran = { id: string; name: string };
+type Member = { id: string; name: string };
+type Section = {
+  key: string;
+  title: string;
+  icon: string;
+  type: "employee" | "manager";
+  members: Member[];
+};
 
-export default function LoginForm({
-  veterans,
-  managers,
-}: {
-  veterans: Veteran[];
-  managers: readonly Manager[];
-}) {
-  const [managerId, setManagerId] = useState<string | null>(null);
-  const [employeeId, setEmployeeId] = useState<string | null>(null);
+export default function LoginForm({ sections }: { sections: Section[] }) {
+  const [openSectionKey, setOpenSectionKey] = useState<string | null>(null);
+  const [selected, setSelected] = useState<{ section: Section; member: Member } | null>(null);
+
   const [employeeState, employeeAction, employeePending] = useActionState(
     loginEmployee,
     null
@@ -24,16 +25,27 @@ export default function LoginForm({
     null
   );
 
-  const activeManager = managers.find((m) => m.id === managerId);
-  const activeEmployee = veterans.find((v) => v.id === employeeId);
+  // 3. seviye: seçilen kişi için şifre formu
+  if (selected) {
+    const isManager = selected.section.type === "manager";
+    const state = isManager ? managerState : employeeState;
+    const pending = isManager ? managerPending : employeePending;
 
-  if (activeEmployee) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-800">Giriş</h2>
-        <p className="mt-1 text-xs text-slate-500">{activeEmployee.name}</p>
-        <form action={employeeAction} className="mt-4 space-y-3">
-          <input type="hidden" name="employeeId" value={activeEmployee.id} />
+        <h2 className="text-sm font-semibold text-slate-800">
+          {isManager ? "Yönetici Girişi" : "Giriş"}
+        </h2>
+        <p className="mt-1 text-xs text-slate-500">{selected.member.name}</p>
+        <form
+          action={isManager ? managerAction : employeeAction}
+          className="mt-4 space-y-3"
+        >
+          <input
+            type="hidden"
+            name={isManager ? "managerId" : "employeeId"}
+            value={selected.member.id}
+          />
           <input
             type="password"
             name="password"
@@ -41,93 +53,85 @@ export default function LoginForm({
             autoFocus
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
-          {employeeState?.error && (
-            <p className="text-sm text-rose-600">{employeeState.error}</p>
-          )}
+          {state?.error && <p className="text-sm text-rose-600">{state.error}</p>}
           <button
             type="submit"
-            disabled={employeePending}
+            disabled={pending}
             className="w-full rounded-md bg-teal-600 px-3 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-60"
           >
-            {employeePending ? "Giriş yapılıyor..." : "Giriş Yap"}
+            {pending ? "Giriş yapılıyor..." : "Giriş Yap"}
           </button>
         </form>
         <button
           type="button"
-          onClick={() => setEmployeeId(null)}
+          onClick={() => setSelected(null)}
           className="mt-3 text-xs text-slate-500 hover:text-slate-700"
         >
-          ← Personel listesine dön
+          ← {selected.section.title} listesine dön
         </button>
       </div>
     );
   }
 
-  if (activeManager) {
+  // 2. seviye: açılan bölümün isim listesi
+  const openSection = sections.find((s) => s.key === openSectionKey);
+  if (openSection) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-800">Yönetici Girişi</h2>
-        <p className="mt-1 text-xs text-slate-500">{activeManager.name}</p>
-        <form action={managerAction} className="mt-4 space-y-3">
-          <input type="hidden" name="managerId" value={activeManager.id} />
-          <input
-            type="password"
-            name="password"
-            placeholder="Şifre"
-            autoFocus
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
-          />
-          {managerState?.error && (
-            <p className="text-sm text-rose-600">{managerState.error}</p>
-          )}
-          <button
-            type="submit"
-            disabled={managerPending}
-            className="w-full rounded-md bg-teal-600 px-3 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-60"
-          >
-            {managerPending ? "Giriş yapılıyor..." : "Giriş Yap"}
-          </button>
-        </form>
+      <div className="space-y-2">
         <button
           type="button"
-          onClick={() => setManagerId(null)}
-          className="mt-3 text-xs text-slate-500 hover:text-slate-700"
+          onClick={() => setOpenSectionKey(null)}
+          className="mb-2 text-xs text-slate-500 hover:text-slate-700"
         >
-          ← Personel listesine dön
+          ← Bölümlere dön
         </button>
+        <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800">
+          <span>{openSection.icon}</span> {openSection.title}
+        </h2>
+        {openSection.members.length === 0 && (
+          <p className="rounded-lg border border-dashed border-slate-200 px-4 py-3 text-sm text-slate-400">
+            Bu bölümde henüz kayıtlı kimse yok.
+          </p>
+        )}
+        {openSection.members.map((member) => (
+          <button
+            key={member.id}
+            type="button"
+            onClick={() => setSelected({ section: openSection, member })}
+            className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-teal-300 hover:bg-teal-50"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
+              {member.name.charAt(0)}
+            </span>
+            <span className="text-sm font-medium text-slate-800">{member.name}</span>
+          </button>
+        ))}
       </div>
     );
   }
 
+  // 1. seviye: bölüm kartları
   return (
-    <div className="space-y-2">
-      {veterans.map((emp) => (
+    <div className="space-y-3">
+      {sections.map((section) => (
         <button
-          key={emp.id}
+          key={section.key}
           type="button"
-          onClick={() => setEmployeeId(emp.id)}
-          className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-teal-300 hover:bg-teal-50 disabled:opacity-60"
+          onClick={() => setOpenSectionKey(section.key)}
+          className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-4 text-left shadow-sm transition hover:border-teal-300 hover:bg-teal-50"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
-            {emp.name.charAt(0)}
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-50 text-lg">
+            {section.icon}
           </span>
-          <span className="text-sm font-medium text-slate-800">{emp.name}</span>
-        </button>
-      ))}
-
-      {managers.map((manager) => (
-        <button
-          key={manager.id}
-          type="button"
-          onClick={() => setManagerId(manager.id)}
-          className="flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-left shadow-sm transition hover:border-teal-300 hover:bg-teal-50"
-        >
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-100 text-sm font-semibold text-teal-700">
-            {manager.name.charAt(0)}
+          <span className="flex-1">
+            <span className="block text-sm font-semibold text-slate-800">
+              {section.title}
+            </span>
+            <span className="block text-xs text-slate-400">
+              {section.members.length} kişi
+            </span>
           </span>
-          <span className="text-sm font-medium text-slate-800">
-            {manager.name} <span className="text-slate-400">(Yönetici)</span>
-          </span>
+          <span className="text-slate-300">→</span>
         </button>
       ))}
     </div>

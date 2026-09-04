@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 export type SessionData = {
   employeeId?: string;
   name?: string;
-  role?: "MANAGER" | "VETERAN";
+  role?: "MANAGER" | "VETERAN" | "SAGLIKCI" | "ANTRENOR";
 };
 
 const password = process.env.SESSION_SECRET;
@@ -46,6 +46,22 @@ export async function requireVeteran() {
     redirect("/login");
   }
   return session as SessionData & { employeeId: string; name: string; role: "VETERAN" };
+}
+
+/** Sağlıkçı ve antrenör ekibi (henüz gün seçme sistemi olmayan) erişimi için. */
+export async function requireStaff() {
+  const session = await requireSession();
+  if (
+    (session.role !== "SAGLIKCI" && session.role !== "ANTRENOR") ||
+    !session.employeeId
+  ) {
+    redirect("/login");
+  }
+  return session as SessionData & {
+    employeeId: string;
+    name: string;
+    role: "SAGLIKCI" | "ANTRENOR";
+  };
 }
 
 /** Sadece yönetici (Mahsum hoca) erişimi için. */

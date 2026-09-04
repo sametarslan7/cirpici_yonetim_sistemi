@@ -22,6 +22,9 @@ export default async function Header() {
             {session.role === "VETERAN" && (
               <NavLink href="/talep">Haftalık Talebim</NavLink>
             )}
+            {(session.role === "SAGLIKCI" || session.role === "ANTRENOR") && (
+              <NavLink href="/panel">Panelim</NavLink>
+            )}
             <NavLink href="/cizelge">Çizelge</NavLink>
             {session.role === "MANAGER" && (
               <>
