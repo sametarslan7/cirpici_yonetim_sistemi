@@ -96,7 +96,7 @@ export async function getApprovedWeekSchedule(weekStart: Date): Promise<Schedule
   });
 
   const antrenorRows = await getAntrenorRows(weekStart, dateKeys);
-  const saglikciRows = await getSaglikciRows();
+  const saglikciRows = await getSaglikciRows(weekStart, dateKeys);
 
   return [...veteranRows, ...newTeamRows, ...antrenorRows, ...saglikciRows];
 }
@@ -151,29 +151,61 @@ async function getAntrenorRows(weekStart: Date, dateKeys: string[]): Promise<Sch
       return { shift: "NORMAL", time: ANTRENOR_NORMAL_TIME, isSaturday: false };
     });
 
+    // Antrenör talebi opsiyoneldir (varsayılan tam hafta); talep yoksa
+    // "Talep girilmedi" gibi gereksiz bir uyarı göstermeye gerek yok —
+    // sadece gerçekten PENDING/REJECTED bir talep varsa gösterilir.
     return {
       employeeId: emp.id,
       name: emp.name,
       role: "ANTRENOR",
-      requestStatus: (statusByEmployee.get(emp.id) as ScheduleRow["requestStatus"]) ?? "NONE",
+      requestStatus: statusByEmployee.get(emp.id) as ScheduleRow["requestStatus"] | undefined,
       days,
     };
   });
 }
 
-/** Sağlık ekibi: hafta içi sabit, Cumartesi/Pazar çalışmaz — talep sistemi yok. */
-async function getSaglikciRows(): Promise<ScheduleRow[]> {
+/**
+ * Sağlık ekibi: hafta içi sabit 08:00-17:00, Cumartesi/Pazar çalışmaz. Talep
+ * sistemi yok, tek istisna: o hafta ONAYLANMIŞ bir ek mesai (EXTRA) günü
+ * varsa o gün 08:00-20:00 olarak gösterilir (bkz. submitSaglikciWeeklyRequest).
+ */
+async function getSaglikciRows(weekStart: Date, dateKeys: string[]): Promise<ScheduleRow[]> {
   const saglikEkibi = await prisma.employee.findMany({
     where: { role: "SAGLIKCI", active: true },
     orderBy: { name: "asc" },
   });
 
+  const approvedRequests = await prisma.weeklyRequest.findMany({
+    where: { weekStart, status: "APPROVED", employee: { role: "SAGLIKCI" } },
+    include: { days: true },
+  });
+  const requestByEmployee = new Map(approvedRequests.map((r) => [r.employeeId, r]));
+
+  const allRequestsThisWeek = await prisma.weeklyRequest.findMany({
+    where: { weekStart, employee: { role: "SAGLIKCI" } },
+    select: { employeeId: true, status: true },
+  });
+  const statusByEmployee = new Map(allRequestsThisWeek.map((r) => [r.employeeId, r.status]));
+
   return saglikEkibi.map((emp) => {
-    const days: (DayCell | null)[] = [0, 1, 2, 3, 4, 5].map((i) => {
+    const req = requestByEmployee.get(emp.id);
+    const days: (DayCell | null)[] = dateKeys.map((key, i) => {
       if (i === 5) return { shift: "OFF", time: "—", isSaturday: true };
+      const entry = req?.days.find((d) => formatISODate(d.date) === key);
+      if (entry?.shift === "EXTRA") {
+        return { shift: "EXTRA", time: shiftTime("EXTRA"), isSaturday: false };
+      }
       return { shift: "NORMAL", time: SAGLIKCI_SHIFT_TIME, isSaturday: false };
     });
-    return { employeeId: emp.id, name: emp.name, role: "SAGLIKCI", days };
+    // Ek mesai talebi opsiyoneldir; talep yoksa "Talep girilmedi" gibi
+    // gereksiz bir uyarı göstermeye gerek yok.
+    return {
+      employeeId: emp.id,
+      name: emp.name,
+      role: "SAGLIKCI",
+      requestStatus: statusByEmployee.get(emp.id) as ScheduleRow["requestStatus"] | undefined,
+      days,
+    };
   });
 }
 

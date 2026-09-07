@@ -1,6 +1,12 @@
 import { requireFlexibleAntrenor } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { getUpcomingWeekStart, getWeekDates, formatISODate, formatTRDate } from "@/lib/week";
+import {
+  getUpcomingWeekStart,
+  getWeekDates,
+  formatISODate,
+  formatTRDate,
+  WEEKDAY_NAMES_TR,
+} from "@/lib/week";
 import { getSaturdayTakenBy } from "@/lib/rotation";
 import AntrenorRequestForm from "@/components/AntrenorRequestForm";
 import StatusBanner from "@/components/StatusBanner";
@@ -26,15 +32,22 @@ export default async function AntrenorTalepPage() {
     : -1;
   const initialOffDayIndex = offEntryIndex >= 0 ? offEntryIndex : null;
 
+  const initialExtraDays = weekDates.slice(0, 5).map((d) => {
+    const entry = existing?.days.find(
+      (e) => !e.isSaturday && formatISODate(e.date) === formatISODate(d)
+    );
+    return entry?.shift === "EXTRA";
+  });
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-900">Haftalık Cumartesi Talebim</h1>
+        <h1 className="text-xl font-semibold text-slate-900">Haftalık Talebim</h1>
         <p className="mt-1 text-sm text-slate-500">
           Normalde hafta içi (Pazartesi-Cuma) 08:00-17:00 çalışırsınız. {formatTRDate(weekStart)}{" "}
-          - {formatTRDate(weekDates[5])} haftası için Cumartesi çalışmak isterseniz, karşılığında
-          kullanacağınız izin gününü seçip talep gönderin. Bu talep Mahsum hocanın onayına
-          gidecektir.
+          - {formatTRDate(weekDates[5])} haftası için Cumartesi çalışmak veya bir gün 20:00&apos;a
+          kadar ek mesai yapmak isterseniz aşağıdan işaretleyip talep gönderin. Bu talep Mahsum
+          hocanın onayına gidecektir.
         </p>
       </div>
 
@@ -42,8 +55,14 @@ export default async function AntrenorTalepPage() {
 
       <AntrenorRequestForm
         weekStartISO={formatISODate(weekStart)}
+        weekDates={weekDates.slice(0, 5).map((d, i) => ({
+          index: i,
+          label: WEEKDAY_NAMES_TR[i],
+          dateLabel: formatTRDate(d),
+        }))}
         initialWorkingSaturday={initialWorkingSaturday}
         initialOffDayIndex={initialOffDayIndex}
+        initialExtraDays={initialExtraDays}
         saturdayLockedByOther={saturdayLockedByOther}
         locked={existing?.status === "APPROVED"}
       />

@@ -7,6 +7,12 @@ const MONTH_NAMES_TR = [
   "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
 ];
 
+const ROLE_LABEL: Record<"VETERAN" | "ANTRENOR" | "SAGLIKCI", string> = {
+  VETERAN: "Fizyoterapist",
+  ANTRENOR: "Antrenör",
+  SAGLIKCI: "Sağlıkçı",
+};
+
 export default async function RaporPage({
   searchParams,
 }: {
@@ -61,13 +67,22 @@ export default async function RaporPage({
           <tbody>
             {rows.map((row) => (
               <tr key={row.employeeId} className="border-b border-slate-100 last:border-0">
-                <td className="px-4 py-3 font-medium text-slate-800">{row.name}</td>
-                <td className="px-4 py-3">
-                  <span className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                    {row.extraShiftCount} gün (+{row.extraShiftCount * 3} saat)
-                  </span>
+                <td className="px-4 py-3 align-top">
+                  <div className="font-medium text-slate-800">{row.name}</div>
+                  <div className="text-[11px] text-slate-400">{ROLE_LABEL[row.role]}</div>
                 </td>
-                <td className="px-4 py-3 text-slate-600">{row.saturdayCount} gün</td>
+                <td className="px-4 py-3">
+                  {row.extraShiftCount > 0 ? (
+                    <span className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                      {row.extraShiftCount} gün (+{row.extraShiftCount * 3} saat)
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-slate-600">
+                  {row.role === "VETERAN" ? `${row.saturdayCount} gün` : "—"}
+                </td>
               </tr>
             ))}
           </tbody>

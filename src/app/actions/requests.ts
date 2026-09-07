@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireVeteran, requireFlexibleAntrenor } from "@/lib/session";
+import { requireVeteran, requireFlexibleAntrenor, requireSaglikci } from "@/lib/session";
 import { getUpcomingWeekStart, addDays, formatISODate, WEEKDAY_NAMES_TR } from "@/lib/week";
 import { getMondayCompOffEmployeeId } from "@/lib/rotation";
 import { revalidatePath } from "next/cache";
@@ -168,7 +168,9 @@ export async function submitWeeklyRequest(
  * 5 gün (08:00-17:00) çalışırlar. İsterlerse -bir haftada en fazla 1
  * antrenör olacak şekilde- Cumartesi (08:00-17:00) çalışıp karşılığında
  * AYNI hafta içinden kendi seçtikleri bir günü izinli olurlar. Veteran
- * sistemindeki gibi ertesi haftaya sarkan bir telafi yoktur.
+ * sistemindeki gibi ertesi haftaya sarkan bir telafi yoktur. Ayrıca, hafta
+ * içi herhangi bir günü (izin günü hariç) 20:00'a kadar ek mesai olarak
+ * işaretleyebilirler (+3 saat, aylık raporda görünür).
  */
 export async function submitAntrenorWeeklyRequest(
   _prevState: RequestActionState,
@@ -227,6 +229,24 @@ export async function submitAntrenorWeeklyRequest(
     }
   }
 
+  const extraDays: boolean[] = [];
+  for (let i = 0; i < 5; i++) {
+    extraDays.push(i !== offDayIndex && formData.get(`extra_${i}`) === "on");
+  }
+  const anyExtra = extraDays.some(Boolean);
+
+  // Değişecek bir şey yoksa (Cumartesi de yok, ek mesai de yok) onaya
+  // gerek bırakmadan varsayılan tam haftaya döndür.
+  if (!workingSaturday && !anyExtra) {
+    if (existing) {
+      await prisma.weeklyRequest.delete({ where: { id: existing.id } });
+    }
+    revalidatePath("/antrenor-talep");
+    revalidatePath("/admin");
+    revalidatePath("/cizelge");
+    return { success: true };
+  }
+
   await prisma.$transaction(async (tx) => {
     const weeklyRequest = await tx.weeklyRequest.upsert({
       where: { employeeId_weekStart: { employeeId: session.employeeId, weekStart } },
@@ -248,7 +268,11 @@ export async function submitAntrenorWeeklyRequest(
     const dayData = Array.from({ length: 5 }, (_, i) => ({
       weeklyRequestId: weeklyRequest.id,
       date: addDays(weekStart, i),
-      shift: (workingSaturday && i === offDayIndex ? "OFF" : "NORMAL") as ShiftType,
+      shift: (workingSaturday && i === offDayIndex
+        ? "OFF"
+        : extraDays[i]
+        ? "EXTRA"
+        : "NORMAL") as ShiftType,
       isSaturday: false,
     }));
 
@@ -265,6 +289,87 @@ export async function submitAntrenorWeeklyRequest(
   });
 
   revalidatePath("/antrenor-talep");
+  revalidatePath("/admin");
+  revalidatePath("/cizelge");
+
+  return { success: true };
+}
+
+/**
+ * Sağlık ekibi için: normalde hafta içi (Pzt-Cum) 08:00-17:00 sabit
+ * çalışırlar, Cumartesi hiç çalışmazlar. Bir gün 20:00'a kadar kaldılarsa
+ * o günü ek mesai (+3 saat) olarak işaretleyip onaya gönderebilirler.
+ */
+export async function submitSaglikciWeeklyRequest(
+  _prevState: RequestActionState,
+  formData: FormData
+): Promise<RequestActionState> {
+  const session = await requireSaglikci();
+
+  const expectedWeekStart = getUpcomingWeekStart();
+  const submittedWeekStart = String(formData.get("weekStart") ?? "");
+  if (submittedWeekStart !== formatISODate(expectedWeekStart)) {
+    return {
+      error: "Bu form güncel hafta için değil. Lütfen sayfayı yenileyip tekrar deneyin.",
+    };
+  }
+  const weekStart = expectedWeekStart;
+
+  const existing = await prisma.weeklyRequest.findUnique({
+    where: { employeeId_weekStart: { employeeId: session.employeeId, weekStart } },
+  });
+  if (existing?.status === "APPROVED") {
+    return {
+      error:
+        "Bu haftanın talebi zaten onaylandı. Değişiklik yapmak için Mahsum hocadan onayı geri almasını isteyin.",
+    };
+  }
+
+  const extraDays: boolean[] = [];
+  for (let i = 0; i < 5; i++) {
+    extraDays.push(formData.get(`extra_${i}`) === "on");
+  }
+  const anyExtra = extraDays.some(Boolean);
+
+  if (!anyExtra) {
+    if (existing) {
+      await prisma.weeklyRequest.delete({ where: { id: existing.id } });
+    }
+    revalidatePath("/panel");
+    revalidatePath("/admin");
+    revalidatePath("/cizelge");
+    return { success: true };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const weeklyRequest = await tx.weeklyRequest.upsert({
+      where: { employeeId_weekStart: { employeeId: session.employeeId, weekStart } },
+      create: {
+        employeeId: session.employeeId,
+        weekStart,
+        status: "PENDING",
+        workingSaturday: false,
+      },
+      update: {
+        status: "PENDING",
+        workingSaturday: false,
+        rejectionReason: null,
+      },
+    });
+
+    await tx.dayEntry.deleteMany({ where: { weeklyRequestId: weeklyRequest.id } });
+
+    const dayData = extraDays.map((isExtra, i) => ({
+      weeklyRequestId: weeklyRequest.id,
+      date: addDays(weekStart, i),
+      shift: (isExtra ? "EXTRA" : "NORMAL") as ShiftType,
+      isSaturday: false,
+    }));
+
+    await tx.dayEntry.createMany({ data: dayData });
+  });
+
+  revalidatePath("/panel");
   revalidatePath("/admin");
   revalidatePath("/cizelge");
 

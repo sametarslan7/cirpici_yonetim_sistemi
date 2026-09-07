@@ -2,28 +2,83 @@
 
 import { useActionState, useState } from "react";
 import { submitAntrenorWeeklyRequest } from "@/app/actions/requests";
-import { WEEKDAY_NAMES_TR } from "@/lib/week";
+
+type DayInfo = { index: number; label: string; dateLabel: string };
 
 export default function AntrenorRequestForm({
   weekStartISO,
+  weekDates,
   initialWorkingSaturday,
   initialOffDayIndex,
+  initialExtraDays,
   saturdayLockedByOther,
   locked,
 }: {
   weekStartISO: string;
+  weekDates: DayInfo[];
   initialWorkingSaturday: boolean;
   initialOffDayIndex: number | null;
+  initialExtraDays: boolean[];
   saturdayLockedByOther: string | null;
   locked: boolean;
 }) {
   const [state, formAction, pending] = useActionState(submitAntrenorWeeklyRequest, null);
   const [workingSaturday, setWorkingSaturday] = useState(initialWorkingSaturday);
   const [offDayIndex, setOffDayIndex] = useState(initialOffDayIndex ?? 0);
+  const [extraDays, setExtraDays] = useState<boolean[]>(initialExtraDays);
+
+  function toggleExtra(dayIndex: number, checked: boolean) {
+    setExtraDays((prev) => {
+      const next = [...prev];
+      next[dayIndex] = checked;
+      return next;
+    });
+  }
 
   return (
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="weekStart" value={weekStartISO} />
+
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <th className="px-4 py-3 font-medium">Gün</th>
+              <th className="px-4 py-3 font-medium">Ek Mesai</th>
+            </tr>
+          </thead>
+          <tbody>
+            {weekDates.map((day) => {
+              const isOffDay = workingSaturday && day.index === offDayIndex;
+              return (
+                <tr key={day.index} className="border-b border-slate-100 last:border-0">
+                  <td className="px-4 py-3 align-top">
+                    <div className="font-medium text-slate-800">{day.label}</div>
+                    <div className="text-xs text-slate-400">{day.dateLabel}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {isOffDay ? (
+                      <span className="text-xs text-slate-400">İzin günü</span>
+                    ) : (
+                      <label className="flex items-center gap-2 text-xs text-slate-600">
+                        <input
+                          type="checkbox"
+                          name={`extra_${day.index}`}
+                          checked={extraDays[day.index] ?? false}
+                          disabled={locked}
+                          onChange={(e) => toggleExtra(day.index, e.target.checked)}
+                          className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                        />
+                        Bu gün 20:00&apos;a kadar çalışacağım (+3 saat)
+                      </label>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <label className="flex items-start gap-3">
@@ -66,9 +121,9 @@ export default function AntrenorRequestForm({
               onChange={(e) => setOffDayIndex(Number(e.target.value))}
               className="mt-1.5 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-teal-500 focus:outline-none"
             >
-              {WEEKDAY_NAMES_TR.slice(0, 5).map((name, i) => (
-                <option key={i} value={i}>
-                  {name}
+              {weekDates.map((day) => (
+                <option key={day.index} value={day.index}>
+                  {day.label}
                 </option>
               ))}
             </select>

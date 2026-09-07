@@ -45,7 +45,12 @@ export async function GET(request: NextRequest) {
   const head = [["Personel", ...WEEKDAY_NAMES_TR.slice(0, 6).map((d, i) => `${d}\n${formatTRDate(weekDates[i])}`)]];
   const body = rows.map((row) => [
     row.name,
-    ...row.days.map((cell) => (cell ? `${cell.time}${cell.shift === "OFF" ? "\n(İzinli)" : ""}` : "—")),
+    ...row.days.map((cell) => {
+      if (!cell) return "—";
+      const note =
+        cell.shift === "OFF" ? "\n(İzinli)" : cell.shift === "EXTRA" ? "\n(+3 saat ek mesai)" : "";
+      return `${cell.time}${note}`;
+    }),
   ]);
 
   autoTable(doc, {

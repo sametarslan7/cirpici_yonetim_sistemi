@@ -84,6 +84,15 @@ export async function requireFlexibleAntrenor() {
   return session as SessionData & { employeeId: string; name: string; role: "ANTRENOR" };
 }
 
+/** Sadece sağlık ekibi için — ek mesai (08:00-20:00) talebi girebilen kişiler. */
+export async function requireSaglikci() {
+  const session = await requireSession();
+  if (session.role !== "SAGLIKCI" || !session.employeeId) {
+    redirect("/login");
+  }
+  return session as SessionData & { employeeId: string; name: string; role: "SAGLIKCI" };
+}
+
 /** Sadece yönetici (Mahsum hoca) erişimi için. */
 export async function requireManager() {
   const session = await requireSession();

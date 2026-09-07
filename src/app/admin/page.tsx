@@ -52,7 +52,12 @@ export default async function AdminPage() {
                 request={{
                   id: r.id,
                   employeeName: r.employee.name,
-                  employeeRoleLabel: r.employee.role === "ANTRENOR" ? "Antrenör" : undefined,
+                  employeeRoleLabel:
+                    r.employee.role === "ANTRENOR"
+                      ? "Antrenör"
+                      : r.employee.role === "SAGLIKCI"
+                      ? "Sağlıkçı"
+                      : undefined,
                   workingSaturday: r.workingSaturday,
                   days: r.days,
                 }}

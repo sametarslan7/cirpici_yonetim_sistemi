@@ -146,6 +146,9 @@ function Cell({ cell }: { cell: { shift: keyof typeof SHIFT_META; time: string; 
       <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-medium ${meta.badge}`}>
         {cell.time}
       </span>
+      {cell.shift === "EXTRA" && (
+        <div className="mt-1 text-[10px] font-semibold text-amber-600">+3 saat ek mesai</div>
+      )}
     </td>
   );
 }
