@@ -49,10 +49,10 @@ export const VETERAN_SATURDAY_TIME = "08:00 - 17:00";
 export const ANTRENOR_NORMAL_TIME = "08:00 - 17:00";
 
 // Sabit programlı antrenör (Eren Çelik gibi): Pazartesi izinli, hafta içi
-// 17:00-20:00, Cumartesi 08:00-17:00 — değişmez.
+// 11:00-20:00, Cumartesi 08:00-17:00 — değişmez.
 export const ANTRENOR_FIXED_SHIFT = {
   offDayIndex: 0, // Pazartesi
-  weekdayTime: "17:00 - 20:00",
+  weekdayTime: "11:00 - 20:00",
   saturdayTime: "08:00 - 17:00",
 };
 
