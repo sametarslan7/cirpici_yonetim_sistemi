@@ -10,7 +10,11 @@ const VETERANS = [
   { name: "Mertcan Kara", password: "9689" },
 ];
 
-const NEW_TEAM = ["Duhan Batıkan", "Minel", "Bora"];
+const NEW_TEAM = [
+  { name: "Duhan Batıkan", password: "4271" },
+  { name: "Minel", password: "5830" },
+  { name: "Bora", password: "7104" },
+];
 
 async function main() {
   await prisma.employee.upsert({
@@ -29,10 +33,11 @@ async function main() {
   }
 
   for (let i = 0; i < NEW_TEAM.length; i++) {
+    const { name, password } = NEW_TEAM[i];
     await prisma.employee.upsert({
-      where: { name: NEW_TEAM[i] },
-      create: { name: NEW_TEAM[i], role: "NEW", rotationOrder: i + 1 },
-      update: { role: "NEW", rotationOrder: i + 1, active: true },
+      where: { name },
+      create: { name, role: "NEW", rotationOrder: i + 1, password },
+      update: { role: "NEW", rotationOrder: i + 1, active: true, password },
     });
   }
 

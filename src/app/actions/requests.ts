@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireVeteran, requireFlexibleAntrenor, requireSaglikci } from "@/lib/session";
+import { requireVeteran, requireNewTeam, requireFlexibleAntrenor, requireSaglikci } from "@/lib/session";
 import { getUpcomingWeekStart, addDays, formatISODate, WEEKDAY_NAMES_TR } from "@/lib/week";
 import { getMondayCompOffEmployeeId } from "@/lib/rotation";
 import { revalidatePath } from "next/cache";
@@ -157,6 +157,47 @@ export async function submitWeeklyRequest(
   });
 
   revalidatePath("/talep");
+  revalidatePath("/admin");
+  revalidatePath("/cizelge");
+
+  return { success: true };
+}
+
+/**
+ * Yeni ekip (fizyoterapist) için: hafta içi (Pzt-Cum) hangi gün izinli
+ * olacaklarını kendileri seçebilir. Sistem rotasyonla bir öneri üretir
+ * ([[suggestNewTeamDayOffIndex]]), ama kişi isterse değiştirip kendi
+ * seçtiği günü kaydedebilir. Onay gerekmez (admin panelindeki
+ * `setNewTeamDayOff` ile aynı kayda yazar); Mahsum hoca dilerse admin
+ * panelinden yine değiştirebilir.
+ */
+export async function submitNewTeamDayOff(
+  _prevState: RequestActionState,
+  formData: FormData
+): Promise<RequestActionState> {
+  const session = await requireNewTeam();
+
+  const expectedWeekStart = getUpcomingWeekStart();
+  const submittedWeekStart = String(formData.get("weekStart") ?? "");
+  if (submittedWeekStart !== formatISODate(expectedWeekStart)) {
+    return {
+      error: "Bu form güncel hafta için değil. Lütfen sayfayı yenileyip tekrar deneyin.",
+    };
+  }
+  const weekStart = expectedWeekStart;
+
+  const dayOffIndex = Number(formData.get("dayOffIndex"));
+  if (!Number.isInteger(dayOffIndex) || dayOffIndex < 0 || dayOffIndex > 4) {
+    return { error: "Lütfen izinli olmak istediğiniz günü seçin." };
+  }
+
+  await prisma.newTeamWeekOff.upsert({
+    where: { employeeId_weekStart: { employeeId: session.employeeId, weekStart } },
+    create: { employeeId: session.employeeId, weekStart, dayOffIndex },
+    update: { dayOffIndex },
+  });
+
+  revalidatePath("/yeni-ekip-talep");
   revalidatePath("/admin");
   revalidatePath("/cizelge");
 

@@ -3,9 +3,14 @@ import LoginForm from "@/components/LoginForm";
 import { MANAGERS } from "@/lib/constants";
 
 export default async function LoginPage() {
-  const [veterans, saglikEkibi, antrenorEkibi] = await Promise.all([
+  const [veterans, yeniEkip, saglikEkibi, antrenorEkibi] = await Promise.all([
     prisma.employee.findMany({
       where: { role: "VETERAN", active: true },
+      orderBy: { rotationOrder: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.employee.findMany({
+      where: { role: "NEW", active: true },
       orderBy: { rotationOrder: "asc" },
       select: { id: true, name: true },
     }),
@@ -22,7 +27,13 @@ export default async function LoginPage() {
   ]);
 
   const sections = [
-    { key: "fizyoterapist", title: "Fizyoterapistler", icon: "🩺", type: "employee" as const, members: veterans },
+    {
+      key: "fizyoterapist",
+      title: "Fizyoterapistler",
+      icon: "🩺",
+      type: "employee" as const,
+      members: [...veterans, ...yeniEkip],
+    },
     { key: "saglikci", title: "Sağlıkçılar", icon: "❤️‍🩹", type: "employee" as const, members: saglikEkibi },
     { key: "antrenor", title: "Antrenör Ekibi", icon: "🏃", type: "employee" as const, members: antrenorEkibi },
     { key: "yonetici", title: "Yöneticiler", icon: "🗂️", type: "manager" as const, members: MANAGERS.map((m) => ({ id: m.id, name: m.name })) },

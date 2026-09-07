@@ -23,7 +23,7 @@ export async function loginEmployee(
   if (!employeeId) return { error: "Lütfen listeden bir isim seçin." };
 
   const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
-  const loginableRoles = ["VETERAN", "SAGLIKCI", "ANTRENOR"] as const;
+  const loginableRoles = ["VETERAN", "NEW", "SAGLIKCI", "ANTRENOR"] as const;
   if (
     !employee ||
     !employee.active ||
@@ -38,12 +38,15 @@ export async function loginEmployee(
   const session = await getSession();
   session.employeeId = employee.id;
   session.name = employee.name;
-  session.role = employee.role as "VETERAN" | "SAGLIKCI" | "ANTRENOR";
+  session.role = employee.role as "VETERAN" | "NEW" | "SAGLIKCI" | "ANTRENOR";
   session.antrenorFixed = employee.antrenorFixed;
   await session.save();
 
   if (employee.role === "VETERAN") {
     redirect("/talep");
+  }
+  if (employee.role === "NEW") {
+    redirect("/yeni-ekip-talep");
   }
   if (employee.role === "ANTRENOR" && !employee.antrenorFixed) {
     redirect("/antrenor-talep");

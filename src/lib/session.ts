@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 export type SessionData = {
   employeeId?: string;
   name?: string;
-  role?: "MANAGER" | "VETERAN" | "SAGLIKCI" | "ANTRENOR";
+  role?: "MANAGER" | "VETERAN" | "NEW" | "SAGLIKCI" | "ANTRENOR";
   // Sadece role "ANTRENOR" için anlamlı: sabit programlı (Eren Çelik gibi)
   // antrenörler gün belirleme talebi giremez.
   antrenorFixed?: boolean;
@@ -49,6 +49,15 @@ export async function requireVeteran() {
     redirect("/login");
   }
   return session as SessionData & { employeeId: string; name: string; role: "VETERAN" };
+}
+
+/** Sadece yeni ekip (gün belirleme talebi girebilen) kullanıcıların erişebileceği sayfalar için. */
+export async function requireNewTeam() {
+  const session = await requireSession();
+  if (session.role !== "NEW" || !session.employeeId) {
+    redirect("/login");
+  }
+  return session as SessionData & { employeeId: string; name: string; role: "NEW" };
 }
 
 /**
