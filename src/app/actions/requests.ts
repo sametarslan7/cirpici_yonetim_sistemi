@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireVeteran, requireNewTeam, requireFlexibleAntrenor, requireSaglikci } from "@/lib/session";
 import { getUpcomingWeekStart, addDays, formatISODate, WEEKDAY_NAMES_TR } from "@/lib/week";
-import { getMondayCompOffEmployeeId } from "@/lib/rotation";
+import { getMondayCompOffEmployeeId, getNewTeamWeekOffs } from "@/lib/rotation";
 import { revalidatePath } from "next/cache";
 import type { ShiftType } from "@prisma/client";
 
@@ -189,6 +189,19 @@ export async function submitNewTeamDayOff(
   const dayOffIndex = Number(formData.get("dayOffIndex"));
   if (!Number.isInteger(dayOffIndex) || dayOffIndex < 0 || dayOffIndex > 4) {
     return { error: "Lütfen izinli olmak istediğiniz günü seçin." };
+  }
+
+  // Aynı hafta içinde iki yeni ekip fizyoterapisti aynı güne izin
+  // alamaz (o gün kimse kapatmasın diye). Diğerlerinin o haftaki
+  // (öneri ya da kayıtlı) izin günüyle çakışıyorsa reddet.
+  const others = (await getNewTeamWeekOffs(weekStart)).filter(
+    (o) => o.employee.id !== session.employeeId
+  );
+  const conflict = others.find((o) => o.dayOffIndex === dayOffIndex);
+  if (conflict) {
+    return {
+      error: `Bu gün zaten ${conflict.employee.name} için izinli görünüyor. Lütfen başka bir gün seçin.`,
+    };
   }
 
   await prisma.newTeamWeekOff.upsert({
