@@ -7,6 +7,9 @@ export type SessionData = {
   employeeId?: string;
   name?: string;
   role?: "MANAGER" | "VETERAN" | "SAGLIKCI" | "ANTRENOR";
+  // Sadece role "ANTRENOR" için anlamlı: sabit programlı (Eren Çelik gibi)
+  // antrenörler gün belirleme talebi giremez.
+  antrenorFixed?: boolean;
 };
 
 const password = process.env.SESSION_SECRET;
@@ -48,7 +51,11 @@ export async function requireVeteran() {
   return session as SessionData & { employeeId: string; name: string; role: "VETERAN" };
 }
 
-/** Sağlıkçı ve antrenör ekibi (henüz gün seçme sistemi olmayan) erişimi için. */
+/**
+ * Sağlıkçı ve antrenör ekibi (sabit programlı olanlar dahil) erişimi için.
+ * Gün belirleme talebi giren esnek antrenörler için [[requireFlexibleAntrenor]]
+ * kullanılır.
+ */
 export async function requireStaff() {
   const session = await requireSession();
   if (
@@ -62,6 +69,19 @@ export async function requireStaff() {
     name: string;
     role: "SAGLIKCI" | "ANTRENOR";
   };
+}
+
+/**
+ * Sadece esnek (sabit programlı olmayan) antrenörler için — Cumartesi/izin
+ * günü talebi girebilen kişiler. Eren Çelik gibi sabit programlılar bu
+ * sayfaya erişemez, /panel'e yönlenir.
+ */
+export async function requireFlexibleAntrenor() {
+  const session = await requireSession();
+  if (session.role !== "ANTRENOR" || session.antrenorFixed || !session.employeeId) {
+    redirect("/login");
+  }
+  return session as SessionData & { employeeId: string; name: string; role: "ANTRENOR" };
 }
 
 /** Sadece yönetici (Mahsum hoca) erişimi için. */

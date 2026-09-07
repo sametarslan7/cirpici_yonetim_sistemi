@@ -43,3 +43,18 @@ export const SHIFT_META: Record<
 export const NEW_TEAM_SHIFT = { time: "11:00 - 20:00", label: "Sabit Mesai" };
 export const NEW_TEAM_SATURDAY_SHIFT = { time: "08:00 - 17:00", label: "Cumartesi (Sabit)" };
 export const VETERAN_SATURDAY_TIME = "08:00 - 17:00";
+
+// Antrenör ekibinin normal (esnek) hafta içi/Cumartesi saati — sağlıkçılarla
+// aynı saat aralığı.
+export const ANTRENOR_NORMAL_TIME = "08:00 - 17:00";
+
+// Sabit programlı antrenör (Eren Çelik gibi): Pazartesi izinli, hafta içi
+// 17:00-20:00, Cumartesi 08:00-17:00 — değişmez.
+export const ANTRENOR_FIXED_SHIFT = {
+  offDayIndex: 0, // Pazartesi
+  weekdayTime: "17:00 - 20:00",
+  saturdayTime: "08:00 - 17:00",
+};
+
+// Sağlık ekibi: hafta içi sabit, Cumartesi/Pazar çalışmaz.
+export const SAGLIKCI_SHIFT_TIME = "08:00 - 17:00";

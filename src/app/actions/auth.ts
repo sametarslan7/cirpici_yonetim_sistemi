@@ -39,9 +39,16 @@ export async function loginEmployee(
   session.employeeId = employee.id;
   session.name = employee.name;
   session.role = employee.role as "VETERAN" | "SAGLIKCI" | "ANTRENOR";
+  session.antrenorFixed = employee.antrenorFixed;
   await session.save();
 
-  redirect(employee.role === "VETERAN" ? "/talep" : "/panel");
+  if (employee.role === "VETERAN") {
+    redirect("/talep");
+  }
+  if (employee.role === "ANTRENOR" && !employee.antrenorFixed) {
+    redirect("/antrenor-talep");
+  }
+  redirect("/panel");
 }
 
 export async function loginManager(

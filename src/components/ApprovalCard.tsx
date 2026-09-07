@@ -9,6 +9,7 @@ import type { ShiftType } from "@prisma/client";
 type PendingRequest = {
   id: string;
   employeeName: string;
+  employeeRoleLabel?: string;
   workingSaturday: boolean;
   days: { date: Date; shift: ShiftType; isSaturday: boolean }[];
 };
@@ -24,7 +25,14 @@ export default function ApprovalCard({ request }: { request: PendingRequest }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-semibold text-slate-800">{request.employeeName}</h3>
+        <h3 className="font-semibold text-slate-800">
+          {request.employeeName}
+          {request.employeeRoleLabel && (
+            <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-normal text-slate-500">
+              {request.employeeRoleLabel}
+            </span>
+          )}
+        </h3>
         <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
           Onay bekliyor
         </span>

@@ -18,6 +18,8 @@ export default function ScheduleTable({
 }) {
   const veteranRows = rows.filter((r) => r.role === "VETERAN");
   const newTeamRows = rows.filter((r) => r.role === "NEW");
+  const antrenorRows = rows.filter((r) => r.role === "ANTRENOR");
+  const saglikciRows = rows.filter((r) => r.role === "SAGLIKCI");
 
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -58,6 +60,47 @@ export default function ScheduleTable({
             </tr>
           )}
           {newTeamRows.map((row) => (
+            <tr key={row.employeeId} className="border-b border-slate-100 last:border-0">
+              <td className="px-4 py-3 align-top">
+                <div className="font-medium text-slate-800">{row.name}</div>
+              </td>
+              {row.days.map((cell, i) => (
+                <Cell key={i} cell={cell} />
+              ))}
+            </tr>
+          ))}
+
+          {antrenorRows.length > 0 && (
+            <tr>
+              <td colSpan={7} className="bg-slate-50 px-4 py-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                Antrenör Ekibi
+              </td>
+            </tr>
+          )}
+          {antrenorRows.map((row) => (
+            <tr key={row.employeeId} className="border-b border-slate-100 last:border-0">
+              <td className="px-4 py-3 align-top">
+                <div className="font-medium text-slate-800">{row.name}</div>
+                {row.requestStatus && row.requestStatus !== "APPROVED" && (
+                  <div className="text-[11px] text-slate-400">
+                    {STATUS_LABEL[row.requestStatus]}
+                  </div>
+                )}
+              </td>
+              {row.days.map((cell, i) => (
+                <Cell key={i} cell={cell} />
+              ))}
+            </tr>
+          ))}
+
+          {saglikciRows.length > 0 && (
+            <tr>
+              <td colSpan={7} className="bg-slate-50 px-4 py-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                Sağlık Ekibi
+              </td>
+            </tr>
+          )}
+          {saglikciRows.map((row) => (
             <tr key={row.employeeId} className="border-b border-slate-100 last:border-0">
               <td className="px-4 py-3 align-top">
                 <div className="font-medium text-slate-800">{row.name}</div>

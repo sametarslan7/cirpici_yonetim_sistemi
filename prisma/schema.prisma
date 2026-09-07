@@ -47,6 +47,11 @@ model Employee {
   // Eski ekip için Cumartesi rotasyon sırası (1-5). Yeni ekip için
   // hafta içi izin günü rotasyon sırası (1-3). Yönetici için kullanılmaz.
   rotationOrder Int?
+  // Antrenör ekibinden sabit programlı olanlar için (örn. Eren Çelik):
+  // Pazartesi izinli, hafta içi 17:00-20:00, Cumartesi 08:00-17:00 —
+  // sabit ve değişmez, gün belirleme/talep sistemine girmez. Diğer
+  // roller ve esnek antrenörler için false.
+  antrenorFixed Boolean  @default(false)
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
 

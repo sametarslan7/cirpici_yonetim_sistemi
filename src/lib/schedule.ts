@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getWeekDates, formatISODate } from "@/lib/week";
 import { getNewTeamWeekOffs, getMondayCompOffEmployeeId } from "@/lib/rotation";
+import { ANTRENOR_FIXED_SHIFT, ANTRENOR_NORMAL_TIME, SAGLIKCI_SHIFT_TIME } from "@/lib/constants";
 import type { ShiftType } from "@prisma/client";
 
 export type DayCell = {
@@ -13,7 +14,7 @@ export type DayCell = {
 export type ScheduleRow = {
   employeeId: string;
   name: string;
-  role: "VETERAN" | "NEW";
+  role: "VETERAN" | "NEW" | "ANTRENOR" | "SAGLIKCI";
   requestStatus?: "PENDING" | "APPROVED" | "REJECTED" | "NONE";
   days: (DayCell | null)[]; // Pazartesi..Cumartesi, null = veri yok
 };
@@ -94,7 +95,86 @@ export async function getApprovedWeekSchedule(weekStart: Date): Promise<Schedule
     };
   });
 
-  return [...veteranRows, ...newTeamRows];
+  const antrenorRows = await getAntrenorRows(weekStart, dateKeys);
+  const saglikciRows = await getSaglikciRows();
+
+  return [...veteranRows, ...newTeamRows, ...antrenorRows, ...saglikciRows];
+}
+
+/**
+ * Antrenör ekibi satırları: sabit programlı olanlar (örn. Eren Çelik) her
+ * hafta aynı, hesaplanmış çizelgeyle görünür. Esnek olanlar, o hafta
+ * ONAYLANMIŞ bir talep varsa onunla; yoksa varsayılan tam hafta (Pzt-Cum
+ * 08:00-17:00, Cumartesi izinli) ile görünür.
+ */
+async function getAntrenorRows(weekStart: Date, dateKeys: string[]): Promise<ScheduleRow[]> {
+  const antrenorler = await prisma.employee.findMany({
+    where: { role: "ANTRENOR", active: true },
+    orderBy: { name: "asc" },
+  });
+
+  const approvedRequests = await prisma.weeklyRequest.findMany({
+    where: { weekStart, status: "APPROVED", employee: { role: "ANTRENOR" } },
+    include: { days: true },
+  });
+  const requestByEmployee = new Map(approvedRequests.map((r) => [r.employeeId, r]));
+
+  const allRequestsThisWeek = await prisma.weeklyRequest.findMany({
+    where: { weekStart, employee: { role: "ANTRENOR" } },
+    select: { employeeId: true, status: true },
+  });
+  const statusByEmployee = new Map(allRequestsThisWeek.map((r) => [r.employeeId, r.status]));
+
+  return antrenorler.map((emp) => {
+    if (emp.antrenorFixed) {
+      const days: (DayCell | null)[] = dateKeys.map((_, i) => {
+        if (i === ANTRENOR_FIXED_SHIFT.offDayIndex) {
+          return { shift: "OFF", time: "—", isSaturday: false };
+        }
+        if (i === 5) {
+          return { shift: "NORMAL", time: ANTRENOR_FIXED_SHIFT.saturdayTime, isSaturday: true };
+        }
+        return { shift: "NORMAL", time: ANTRENOR_FIXED_SHIFT.weekdayTime, isSaturday: false };
+      });
+      return { employeeId: emp.id, name: emp.name, role: "ANTRENOR", days };
+    }
+
+    const req = requestByEmployee.get(emp.id);
+    const days: (DayCell | null)[] = dateKeys.map((key, i) => {
+      if (req) {
+        const entry = req.days.find((d) => formatISODate(d.date) === key);
+        if (!entry) return null;
+        return { shift: entry.shift, time: shiftTime(entry.shift), isSaturday: entry.isSaturday };
+      }
+      // Talep yok: varsayılan tam hafta, Cumartesi izinli.
+      if (i === 5) return null;
+      return { shift: "NORMAL", time: ANTRENOR_NORMAL_TIME, isSaturday: false };
+    });
+
+    return {
+      employeeId: emp.id,
+      name: emp.name,
+      role: "ANTRENOR",
+      requestStatus: (statusByEmployee.get(emp.id) as ScheduleRow["requestStatus"]) ?? "NONE",
+      days,
+    };
+  });
+}
+
+/** Sağlık ekibi: hafta içi sabit, Cumartesi/Pazar çalışmaz — talep sistemi yok. */
+async function getSaglikciRows(): Promise<ScheduleRow[]> {
+  const saglikEkibi = await prisma.employee.findMany({
+    where: { role: "SAGLIKCI", active: true },
+    orderBy: { name: "asc" },
+  });
+
+  return saglikEkibi.map((emp) => {
+    const days: (DayCell | null)[] = [0, 1, 2, 3, 4, 5].map((i) => {
+      if (i === 5) return { shift: "OFF", time: "—", isSaturday: true };
+      return { shift: "NORMAL", time: SAGLIKCI_SHIFT_TIME, isSaturday: false };
+    });
+    return { employeeId: emp.id, name: emp.name, role: "SAGLIKCI", days };
+  });
 }
 
 /**
