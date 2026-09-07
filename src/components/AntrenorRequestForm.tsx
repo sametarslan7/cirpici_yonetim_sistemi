@@ -46,7 +46,9 @@ export default function AntrenorRequestForm({
             ) : (
               <p className="mt-1 text-xs text-slate-400">
                 Cumartesi çalışırsanız, karşılığında bu hafta içinden bir gün izin
-                kullanırsınız. Bir haftada en fazla 1 antrenör Cumartesi çalışabilir.
+                kullanırsınız. Eren ile birlikte Cumartesi çalışan toplam antrenör
+                sayısı 2 olacak şekilde, sizin gibi esnek antrenörlerden bir haftada
+                en fazla 1 kişi katılabilir.
               </p>
             )}
           </span>
