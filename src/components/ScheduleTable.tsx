@@ -1,5 +1,6 @@
 import { WEEKDAY_NAMES_TR, formatTRDate } from "@/lib/week";
 import { SHIFT_META } from "@/lib/constants";
+import DeleteRequestButton from "@/components/DeleteRequestButton";
 import type { ScheduleRow } from "@/lib/schedule";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -12,9 +13,12 @@ const STATUS_LABEL: Record<string, string> = {
 export default function ScheduleTable({
   rows,
   weekDates,
+  isManager = false,
 }: {
   rows: ScheduleRow[];
   weekDates: Date[];
+  /** Sadece yönetici oturumunda true — satır bazlı "Sil" butonlarını gösterir. */
+  isManager?: boolean;
 }) {
   const veteranRows = rows.filter((r) => r.role === "VETERAN");
   const newTeamRows = rows.filter((r) => r.role === "NEW");
@@ -29,7 +33,7 @@ export default function ScheduleTable({
         weekDates={weekDates}
       >
         {veteranRows.map((row) => (
-          <Row key={row.employeeId} row={row} />
+          <Row key={row.employeeId} row={row} isManager={isManager} />
         ))}
         {newTeamRows.length > 0 && (
           <tr>
@@ -42,19 +46,19 @@ export default function ScheduleTable({
           </tr>
         )}
         {newTeamRows.map((row) => (
-          <Row key={row.employeeId} row={row} />
+          <Row key={row.employeeId} row={row} isManager={isManager} />
         ))}
       </Section>
 
       <Section title="Antrenör Ekibi" count={antrenorRows.length} weekDates={weekDates}>
         {antrenorRows.map((row) => (
-          <Row key={row.employeeId} row={row} />
+          <Row key={row.employeeId} row={row} isManager={isManager} />
         ))}
       </Section>
 
       <Section title="Sağlık Ekibi" count={saglikciRows.length} weekDates={weekDates}>
         {saglikciRows.map((row) => (
-          <Row key={row.employeeId} row={row} />
+          <Row key={row.employeeId} row={row} isManager={isManager} />
         ))}
       </Section>
     </div>
@@ -116,13 +120,18 @@ function Section({
   );
 }
 
-function Row({ row }: { row: ScheduleRow }) {
+function Row({ row, isManager }: { row: ScheduleRow; isManager: boolean }) {
   return (
     <tr className="border-b border-slate-100 last:border-0">
       <td className="px-4 py-3 align-top">
         <div className="font-medium text-slate-800">{row.name}</div>
         {row.requestStatus && row.requestStatus !== "APPROVED" && (
           <div className="text-[11px] text-slate-400">{STATUS_LABEL[row.requestStatus]}</div>
+        )}
+        {isManager && row.weeklyRequestId && (
+          <div className="mt-1.5">
+            <DeleteRequestButton id={row.weeklyRequestId} employeeName={row.name} />
+          </div>
         )}
       </td>
       {row.days.map((cell, i) => (

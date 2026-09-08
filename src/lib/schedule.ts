@@ -16,6 +16,11 @@ export type ScheduleRow = {
   name: string;
   role: "VETERAN" | "NEW" | "ANTRENOR" | "SAGLIKCI";
   requestStatus?: "PENDING" | "APPROVED" | "REJECTED" | "NONE";
+  // O haftaya ait WeeklyRequest kaydının id'si (varsa) — sadece VETERAN,
+  // esnek ANTRENOR ve SAGLIKCI için anlamlı (NEW ekip ve sabit programlı
+  // antrenörlerin WeeklyRequest'i yoktur). Yönetici panelinde tek bir
+  // kişinin o haftaki kaydını silebilmek için kullanılır.
+  weeklyRequestId?: string;
   days: (DayCell | null)[]; // Pazartesi..Cumartesi, null = veri yok
 };
 
@@ -41,9 +46,10 @@ export async function getApprovedWeekSchedule(weekStart: Date): Promise<Schedule
 
   const allRequestsThisWeek = await prisma.weeklyRequest.findMany({
     where: { weekStart },
-    select: { employeeId: true, status: true },
+    select: { id: true, employeeId: true, status: true },
   });
   const statusByEmployee = new Map(allRequestsThisWeek.map((r) => [r.employeeId, r.status]));
+  const requestIdByEmployee = new Map(allRequestsThisWeek.map((r) => [r.employeeId, r.id]));
 
   // Cumartesi mesaisinin telafisi: bir önceki hafta onaylı Cumartesi çalışan
   // kişi varsa, bu haftanın Pazartesi'si o kişi için otomatik izinlidir —
@@ -71,6 +77,7 @@ export async function getApprovedWeekSchedule(weekStart: Date): Promise<Schedule
       name: emp.name,
       role: "VETERAN",
       requestStatus: (statusByEmployee.get(emp.id) as ScheduleRow["requestStatus"]) ?? "NONE",
+      weeklyRequestId: requestIdByEmployee.get(emp.id),
       days,
     };
   });
@@ -121,9 +128,10 @@ async function getAntrenorRows(weekStart: Date, dateKeys: string[]): Promise<Sch
 
   const allRequestsThisWeek = await prisma.weeklyRequest.findMany({
     where: { weekStart, employee: { role: "ANTRENOR" } },
-    select: { employeeId: true, status: true },
+    select: { id: true, employeeId: true, status: true },
   });
   const statusByEmployee = new Map(allRequestsThisWeek.map((r) => [r.employeeId, r.status]));
+  const requestIdByEmployee = new Map(allRequestsThisWeek.map((r) => [r.employeeId, r.id]));
 
   return antrenorler.map((emp) => {
     if (emp.antrenorFixed) {
@@ -159,6 +167,7 @@ async function getAntrenorRows(weekStart: Date, dateKeys: string[]): Promise<Sch
       name: emp.name,
       role: "ANTRENOR",
       requestStatus: statusByEmployee.get(emp.id) as ScheduleRow["requestStatus"] | undefined,
+      weeklyRequestId: requestIdByEmployee.get(emp.id),
       days,
     };
   });
@@ -183,9 +192,10 @@ async function getSaglikciRows(weekStart: Date, dateKeys: string[]): Promise<Sch
 
   const allRequestsThisWeek = await prisma.weeklyRequest.findMany({
     where: { weekStart, employee: { role: "SAGLIKCI" } },
-    select: { employeeId: true, status: true },
+    select: { id: true, employeeId: true, status: true },
   });
   const statusByEmployee = new Map(allRequestsThisWeek.map((r) => [r.employeeId, r.status]));
+  const requestIdByEmployee = new Map(allRequestsThisWeek.map((r) => [r.employeeId, r.id]));
 
   return saglikEkibi.map((emp) => {
     const req = requestByEmployee.get(emp.id);
@@ -204,6 +214,7 @@ async function getSaglikciRows(weekStart: Date, dateKeys: string[]): Promise<Sch
       name: emp.name,
       role: "SAGLIKCI",
       requestStatus: statusByEmployee.get(emp.id) as ScheduleRow["requestStatus"] | undefined,
+      weeklyRequestId: requestIdByEmployee.get(emp.id),
       days,
     };
   });

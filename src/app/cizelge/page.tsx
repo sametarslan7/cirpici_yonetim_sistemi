@@ -10,6 +10,7 @@ import {
 import { getApprovedWeekSchedule } from "@/lib/schedule";
 import ScheduleTable from "@/components/ScheduleTable";
 import PdfButton from "@/components/PdfButton";
+import DeleteWeekButton from "@/components/DeleteWeekButton";
 import { SHIFT_META } from "@/lib/constants";
 
 export default async function CizelgePage({
@@ -17,7 +18,8 @@ export default async function CizelgePage({
 }: {
   searchParams: Promise<{ week?: string }>;
 }) {
-  await requireSession();
+  const session = await requireSession();
+  const isManager = session.role === "MANAGER";
   const params = await searchParams;
 
   const weekStart = params.week ? getMonday(parseISODate(params.week)) : getMonday(new Date());
@@ -55,7 +57,13 @@ export default async function CizelgePage({
 
       <Legend />
 
-      <ScheduleTable rows={rows} weekDates={weekDates} />
+      {isManager && (
+        <div className="mb-4 flex justify-end">
+          <DeleteWeekButton weekStartISO={formatISODate(weekStart)} />
+        </div>
+      )}
+
+      <ScheduleTable rows={rows} weekDates={weekDates} isManager={isManager} />
 
       <p className="mt-3 text-xs text-slate-400">Not: Pazar günleri tüm ekip izinlidir.</p>
     </div>
