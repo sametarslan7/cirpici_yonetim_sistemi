@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { submitAntrenorWeeklyRequest } from "@/app/actions/requests";
+import { submitSaglikciWeeklyRequest } from "@/app/actions/requests";
 import { SHIFT_META } from "@/lib/constants";
 import type { ShiftType } from "@prisma/client";
 
@@ -9,7 +9,7 @@ type DayInfo = { index: number; label: string; dateLabel: string };
 
 const SELECTABLE_SHIFTS: ShiftType[] = ["NORMAL", "LATE", "EXTRA"];
 
-export default function AntrenorRequestForm({
+export default function SaglikciRequestForm({
   weekStartISO,
   weekDates,
   initialShifts,
@@ -28,7 +28,7 @@ export default function AntrenorRequestForm({
   lateConflicts: (string | null)[];
   locked: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(submitAntrenorWeeklyRequest, null);
+  const [state, formAction, pending] = useActionState(submitSaglikciWeeklyRequest, null);
   const [workingSaturday, setWorkingSaturday] = useState(initialWorkingSaturday);
   const [offDayIndex, setOffDayIndex] = useState(initialOffDayIndex ?? 0);
   const [shifts, setShifts] = useState<ShiftType[]>(initialShifts);
@@ -107,12 +107,6 @@ export default function AntrenorRequestForm({
                             11:00-20:00: {conflictName} tarafından seçildi
                           </p>
                         )}
-                        {day.index === 0 && (
-                          <p className="mt-1 text-[11px] text-amber-600">
-                            Eren Pazartesi izinli — ekipten birinin bu gün 11:00-20:00
-                            çalışması gerekir.
-                          </p>
-                        )}
                       </>
                     )}
                   </td>
@@ -144,9 +138,8 @@ export default function AntrenorRequestForm({
             ) : (
               <p className="mt-1 text-xs text-slate-400">
                 Cumartesi çalışırsanız, karşılığında bu hafta içinden bir gün izin
-                kullanırsınız. Eren ile birlikte Cumartesi çalışan toplam antrenör
-                sayısı 2 olacak şekilde, sizin gibi esnek antrenörlerden bir haftada
-                en fazla 1 kişi katılabilir.
+                kullanırsınız. Sağlık ekibinden bir haftada en fazla 1 kişi Cumartesi
+                çalışabilir.
               </p>
             )}
           </span>

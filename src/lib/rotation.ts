@@ -82,3 +82,43 @@ export async function getNewTeamWeekOffs(weekStart: Date) {
 export function weekKey(weekStart: Date) {
   return formatISODate(weekStart);
 }
+
+/**
+ * Pazartesi kapsama kuralı: sabit programlı antrenör (Eren Çelik gibi) her
+ * Pazartesi izinlidir. Onun normalde doldurduğu 11:00-20:00 saatini, esnek
+ * antrenörlerden tam olarak biri üstlenmelidir. Bu fonksiyon, verilen
+ * çalışan DIŞINDAKİ diğer aktif esnek antrenörlerden en az birinin o
+ * haftanın Pazartesi günü için (mevcut talebine göre) zaten 11:00-20:00
+ * seçip seçmediğini döner — [[submitAntrenorWeeklyRequest]] bu kişi
+ * Pazartesi 11:00-20:00 seçmek istemediğinde, kapsamanın başka biri
+ * tarafından sağlanıp sağlanmadığını kontrol etmek için kullanır.
+ */
+export async function isAntrenorMondayLateCoveredByOthers(
+  weekStart: Date,
+  excludeEmployeeId: string
+): Promise<boolean> {
+  const others = await prisma.employee.findMany({
+    where: {
+      role: "ANTRENOR",
+      antrenorFixed: false,
+      active: true,
+      id: { not: excludeEmployeeId },
+    },
+  });
+  if (others.length === 0) return false;
+
+  const mondayKey = formatISODate(weekStart); // weekStart zaten o haftanın Pazartesi'si
+
+  const requests = await prisma.weeklyRequest.findMany({
+    where: {
+      weekStart,
+      status: { in: ["PENDING", "APPROVED"] },
+      employeeId: { in: others.map((o) => o.id) },
+    },
+    include: { days: true },
+  });
+
+  return requests.some((r) =>
+    r.days.some((d) => !d.isSaturday && d.shift === "LATE" && formatISODate(d.date) === mondayKey)
+  );
+}

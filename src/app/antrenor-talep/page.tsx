@@ -8,9 +8,11 @@ import {
   WEEKDAY_NAMES_TR,
 } from "@/lib/week";
 import { getSaturdayTakenBy } from "@/lib/rotation";
+import { getLateConflictMap } from "@/lib/schedule";
 import AntrenorRequestForm from "@/components/AntrenorRequestForm";
 import StatusBanner from "@/components/StatusBanner";
 import WeekTabs from "@/components/WeekTabs";
+import type { ShiftType } from "@prisma/client";
 
 export default async function AntrenorTalepPage({
   searchParams,
@@ -29,7 +31,10 @@ export default async function AntrenorTalepPage({
     include: { days: true },
   });
 
-  const takenBy = await getSaturdayTakenBy(weekStart, "ANTRENOR");
+  const [takenBy, lateConflicts] = await Promise.all([
+    getSaturdayTakenBy(weekStart, "ANTRENOR"),
+    getLateConflictMap(weekStart, session.employeeId, "ANTRENOR"),
+  ]);
   const saturdayLockedByOther =
     takenBy && takenBy.employeeId !== session.employeeId ? takenBy.employee.name : null;
 
@@ -40,11 +45,12 @@ export default async function AntrenorTalepPage({
     : -1;
   const initialOffDayIndex = offEntryIndex >= 0 ? offEntryIndex : null;
 
-  const initialExtraDays = weekDates.slice(0, 5).map((d) => {
+  const initialShifts: ShiftType[] = weekDates.slice(0, 5).map((d, i) => {
+    if (i === initialOffDayIndex) return "OFF";
     const entry = existing?.days.find(
       (e) => !e.isSaturday && formatISODate(e.date) === formatISODate(d)
     );
-    return entry?.shift === "EXTRA";
+    return entry?.shift ?? "NORMAL";
   });
 
   return (
@@ -53,9 +59,10 @@ export default async function AntrenorTalepPage({
         <h1 className="text-xl font-semibold text-slate-900">Haftalık Talebim</h1>
         <p className="mt-1 text-sm text-slate-500">
           Normalde hafta içi (Pazartesi-Cuma) 08:00-17:00 çalışırsınız. {formatTRDate(weekStart)}{" "}
-          - {formatTRDate(weekDates[5])} haftası için Cumartesi çalışmak veya bir gün 20:00&apos;a
-          kadar ek mesai yapmak isterseniz aşağıdan işaretleyip talep gönderin. Bu talep Mahsum
-          hocanın onayına gidecektir.
+          - {formatTRDate(weekDates[5])} haftası için farklı bir saat aralığında (örn.
+          11:00-20:00) çalışmak, bir gün 20:00&apos;a kadar ek mesai yapmak ya da Cumartesi
+          çalışıp karşılığında hafta içinden bir gün izin kullanmak isterseniz aşağıdan
+          işaretleyip talep gönderin. Bu talep Mahsum hocanın onayına gidecektir.
         </p>
       </div>
 
@@ -77,10 +84,11 @@ export default async function AntrenorTalepPage({
           label: WEEKDAY_NAMES_TR[i],
           dateLabel: formatTRDate(d),
         }))}
+        initialShifts={initialShifts}
         initialWorkingSaturday={initialWorkingSaturday}
         initialOffDayIndex={initialOffDayIndex}
-        initialExtraDays={initialExtraDays}
         saturdayLockedByOther={saturdayLockedByOther}
+        lateConflicts={lateConflicts}
         locked={existing?.status === "APPROVED"}
       />
     </div>

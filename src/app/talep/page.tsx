@@ -36,7 +36,7 @@ export default async function TalepPage({
 
   const [takenBy, lateConflicts, mondayCompOffEmployeeId] = await Promise.all([
     getSaturdayTakenBy(weekStart, "VETERAN"),
-    getLateConflictMap(weekStart, session.employeeId),
+    getLateConflictMap(weekStart, session.employeeId, "VETERAN"),
     getMondayCompOffEmployeeId(weekStart),
   ]);
 

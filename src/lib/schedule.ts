@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getWeekDates, formatISODate } from "@/lib/week";
 import { getNewTeamWeekOffs, getMondayCompOffEmployeeId } from "@/lib/rotation";
 import { ANTRENOR_FIXED_SHIFT, ANTRENOR_NORMAL_TIME, SAGLIKCI_SHIFT_TIME } from "@/lib/constants";
-import type { ShiftType } from "@prisma/client";
+import type { Role, ShiftType } from "@prisma/client";
 
 export type DayCell = {
   shift: ShiftType;
@@ -174,9 +174,11 @@ async function getAntrenorRows(weekStart: Date, dateKeys: string[]): Promise<Sch
 }
 
 /**
- * Sağlık ekibi: hafta içi sabit 08:00-17:00, Cumartesi/Pazar çalışmaz. Talep
- * sistemi yok, tek istisna: o hafta ONAYLANMIŞ bir ek mesai (EXTRA) günü
- * varsa o gün 08:00-20:00 olarak gösterilir (bkz. submitSaglikciWeeklyRequest).
+ * Sağlık ekibi: varsayılan hafta içi sabit 08:00-17:00, Cumartesi/Pazar
+ * çalışmaz. Antrenör ekibiyle aynı esneklik: o hafta ONAYLANMIŞ bir talep
+ * varsa (farklı saat, ek mesai ya da Cumartesi çalışıp karşılığında bir gün
+ * izin) o talep gösterilir; yoksa varsayılan tam hafta (bkz.
+ * submitSaglikciWeeklyRequest).
  */
 async function getSaglikciRows(weekStart: Date, dateKeys: string[]): Promise<ScheduleRow[]> {
   const saglikEkibi = await prisma.employee.findMany({
@@ -200,15 +202,22 @@ async function getSaglikciRows(weekStart: Date, dateKeys: string[]): Promise<Sch
   return saglikEkibi.map((emp) => {
     const req = requestByEmployee.get(emp.id);
     const days: (DayCell | null)[] = dateKeys.map((key, i) => {
-      if (i === 5) return { shift: "OFF", time: "—", isSaturday: true };
-      const entry = req?.days.find((d) => formatISODate(d.date) === key);
-      if (entry?.shift === "EXTRA") {
-        return { shift: "EXTRA", time: shiftTime("EXTRA"), isSaturday: false };
+      if (i === 5) {
+        if (!req?.workingSaturday) return { shift: "OFF", time: "—", isSaturday: true };
+        const entry = req.days.find((d) => d.isSaturday);
+        const shift = entry?.shift ?? "NORMAL";
+        return { shift, time: shiftTime(shift), isSaturday: true };
       }
+      if (req) {
+        const entry = req.days.find((d) => !d.isSaturday && formatISODate(d.date) === key);
+        if (!entry) return null;
+        return { shift: entry.shift, time: shiftTime(entry.shift), isSaturday: entry.isSaturday };
+      }
+      // Talep yok: varsayılan tam hafta.
       return { shift: "NORMAL", time: SAGLIKCI_SHIFT_TIME, isSaturday: false };
     });
-    // Ek mesai talebi opsiyoneldir; talep yoksa "Talep girilmedi" gibi
-    // gereksiz bir uyarı göstermeye gerek yok.
+    // Talep opsiyoneldir; talep yoksa "Talep girilmedi" gibi gereksiz bir
+    // uyarı göstermeye gerek yok.
     return {
       employeeId: emp.id,
       name: emp.name,
@@ -221,13 +230,16 @@ async function getSaglikciRows(weekStart: Date, dateKeys: string[]): Promise<Sch
 }
 
 /**
- * O haftanın hafta içi (Pzt-Cum) her günü için, başkası tarafından zaten
- * seçilmiş 11:00-20:00 (Geç Mesai) var mı diye bakar. Talep formunda o
- * seçeneği kilitlemek için kullanılır.
+ * O haftanın hafta içi (Pzt-Cum) her günü için, AYNI EKİPTEN başkası
+ * tarafından zaten seçilmiş 11:00-20:00 (Geç Mesai) var mı diye bakar. Talep
+ * formunda o seçeneği kilitlemek için kullanılır. Eski ekip, antrenör ve
+ * sağlık ekibinin geç mesai kontenjanları birbirinden bağımsızdır, bu yüzden
+ * role zorunlu parametredir.
  */
 export async function getLateConflictMap(
   weekStart: Date,
-  excludeEmployeeId: string
+  excludeEmployeeId: string,
+  role: Role
 ): Promise<(string | null)[]> {
   const weekDates = getWeekDates(weekStart).slice(0, 5);
   const entries = await prisma.dayEntry.findMany({
@@ -238,6 +250,7 @@ export async function getLateConflictMap(
       weeklyRequest: {
         employeeId: { not: excludeEmployeeId },
         status: { in: ["PENDING", "APPROVED"] },
+        employee: { role },
       },
     },
     include: { weeklyRequest: { include: { employee: true } } },

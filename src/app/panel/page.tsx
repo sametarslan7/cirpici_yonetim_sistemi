@@ -9,10 +9,13 @@ import {
   formatTRDate,
   WEEKDAY_NAMES_TR,
 } from "@/lib/week";
+import { getSaturdayTakenBy } from "@/lib/rotation";
+import { getLateConflictMap } from "@/lib/schedule";
 import { ANTRENOR_FIXED_SHIFT, SAGLIKCI_SHIFT_TIME } from "@/lib/constants";
-import SaglikciExtraForm from "@/components/SaglikciExtraForm";
+import SaglikciRequestForm from "@/components/SaglikciRequestForm";
 import StatusBanner from "@/components/StatusBanner";
 import WeekTabs from "@/components/WeekTabs";
+import type { ShiftType } from "@prisma/client";
 
 const ROLE_LABEL: Record<"SAGLIKCI" | "ANTRENOR", string> = {
   SAGLIKCI: "Sağlık Ekibi",
@@ -34,7 +37,11 @@ export default async function PanelPage({
   let existing: { status: "PENDING" | "APPROVED" | "REJECTED"; rejectionReason: string | null } | null = null;
   let weekStartISO = "";
   let weekDayInfo: { index: number; label: string; dateLabel: string }[] = [];
-  let initialExtraDays: boolean[] = [];
+  let initialShifts: ShiftType[] = [];
+  let initialWorkingSaturday = false;
+  let initialOffDayIndex: number | null = null;
+  let saturdayLockedByOther: string | null = null;
+  let lateConflicts: (string | null)[] = [];
   let currentWeekStart = new Date();
   let upcomingWeekStart = new Date();
 
@@ -56,9 +63,28 @@ export default async function PanelPage({
       include: { days: true },
     });
     existing = req ? { status: req.status, rejectionReason: req.rejectionReason } : null;
-    initialExtraDays = weekDates.slice(0, 5).map((d) => {
-      const entry = req?.days.find((e) => formatISODate(e.date) === formatISODate(d));
-      return entry?.shift === "EXTRA";
+
+    const [takenBy, conflicts] = await Promise.all([
+      getSaturdayTakenBy(weekStart, "SAGLIKCI"),
+      getLateConflictMap(weekStart, session.employeeId, "SAGLIKCI"),
+    ]);
+    saturdayLockedByOther =
+      takenBy && takenBy.employeeId !== session.employeeId ? takenBy.employee.name : null;
+    lateConflicts = conflicts;
+
+    initialWorkingSaturday = req?.workingSaturday ?? false;
+    const offEntry = req?.days.find((d) => !d.isSaturday && d.shift === "OFF");
+    const offEntryIndex = offEntry
+      ? weekDates.slice(0, 5).findIndex((d) => formatISODate(d) === formatISODate(offEntry.date))
+      : -1;
+    initialOffDayIndex = offEntryIndex >= 0 ? offEntryIndex : null;
+
+    initialShifts = weekDates.slice(0, 5).map((d, i) => {
+      if (i === initialOffDayIndex) return "OFF";
+      const entry = req?.days.find(
+        (e) => !e.isSaturday && formatISODate(e.date) === formatISODate(d)
+      );
+      return entry?.shift ?? "NORMAL";
     });
   }
 
@@ -74,7 +100,7 @@ export default async function PanelPage({
 
       <div className="mt-6 w-full rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm">
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
-          Sabit Çalışma Programınız
+          Varsayılan Çalışma Programınız
         </p>
         {session.role === "ANTRENOR" ? (
           <ul className="space-y-1.5 text-sm text-slate-700">
@@ -101,18 +127,22 @@ export default async function PanelPage({
           </ul>
         )}
         <p className="mt-3 text-xs text-slate-400">
-          Bu program sabittir, gün belirleme talebi girmenize gerek yoktur.
+          {session.role === "ANTRENOR"
+            ? "Bu program sabittir, gün belirleme talebi girmenize gerek yoktur."
+            : "Farklı bir saat aralığı, ek mesai ya da Cumartesi çalışmak isterseniz aşağıdan talep gönderebilirsiniz."}
         </p>
       </div>
 
       {session.role === "SAGLIKCI" && (
         <div className="mt-6 w-full text-left">
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
-            Ek Mesai Talebim
+            Haftalık Talebim
           </p>
           <p className="mb-3 text-xs text-slate-500">
-            Bu hafta içi bir gün 20:00&apos;a kadar kaldıysanız işaretleyip talep gönderin;
-            Mahsum hocanın onayına gidecek ve aylık raporda ek mesai saati olarak görünecektir.
+            Bazen hafta içi bir gün izin kullanmanız gerekebilir; bu durumda karşılığında
+            Cumartesi çalışabilirsiniz. Ayrıca bir gün farklı saatte (11:00-20:00) çalışacaksanız
+            ya da 20:00&apos;a kadar ek mesai yapacaksanız aşağıdan işaretleyip talep gönderin.
+            Mahsum hocanın onayına gidecek ve aylık raporda görünecektir.
           </p>
           <WeekTabs
             basePath="/panel"
@@ -123,10 +153,14 @@ export default async function PanelPage({
             activeISO={weekStartISO}
           />
           {existing && <StatusBanner status={existing.status} reason={existing.rejectionReason} />}
-          <SaglikciExtraForm
+          <SaglikciRequestForm
             weekStartISO={weekStartISO}
             weekDates={weekDayInfo}
-            initialExtraDays={initialExtraDays}
+            initialShifts={initialShifts}
+            initialWorkingSaturday={initialWorkingSaturday}
+            initialOffDayIndex={initialOffDayIndex}
+            saturdayLockedByOther={saturdayLockedByOther}
+            lateConflicts={lateConflicts}
             locked={existing?.status === "APPROVED"}
           />
         </div>

@@ -3,13 +3,21 @@
 import { prisma } from "@/lib/prisma";
 import { requireVeteran, requireNewTeam, requireFlexibleAntrenor, requireSaglikci } from "@/lib/session";
 import { isRequestableWeekStart, parseISODate, addDays, WEEKDAY_NAMES_TR } from "@/lib/week";
-import { getMondayCompOffEmployeeId, getNewTeamWeekOffs } from "@/lib/rotation";
+import {
+  getMondayCompOffEmployeeId,
+  getNewTeamWeekOffs,
+  isAntrenorMondayLateCoveredByOthers,
+} from "@/lib/rotation";
 import { revalidatePath } from "next/cache";
 import type { ShiftType } from "@prisma/client";
 
 export type RequestActionState = { error?: string; success?: boolean } | null;
 
 const VALID_SHIFTS: ShiftType[] = ["NORMAL", "LATE", "EXTRA", "OFF"];
+// Antrenör ve sağlıkçının kendi hafta içi günleri için seçebildiği saatler
+// (OFF yalnızca Cumartesi karşılığı izin günü için sistem tarafından atanır,
+// kişi kendisi seçemez).
+const SELECTABLE_SHIFTS: ShiftType[] = ["NORMAL", "LATE", "EXTRA"];
 
 export async function submitWeeklyRequest(
   _prevState: RequestActionState,
@@ -217,12 +225,18 @@ export async function submitNewTeamDayOff(
 
 /**
  * Esnek antrenörler (sabit programlı olmayanlar) için: normalde hafta içi
- * 5 gün (08:00-17:00) çalışırlar. İsterlerse -bir haftada en fazla 1
- * antrenör olacak şekilde- Cumartesi (08:00-17:00) çalışıp karşılığında
- * AYNI hafta içinden kendi seçtikleri bir günü izinli olurlar. Veteran
- * sistemindeki gibi ertesi haftaya sarkan bir telafi yoktur. Ayrıca, hafta
- * içi herhangi bir günü (izin günü hariç) 20:00'a kadar ek mesai olarak
- * işaretleyebilirler (+3 saat, aylık raporda görünür).
+ * 5 gün (08:00-17:00) çalışırlar, ama diğer ekipler gibi hafta içi
+ * günlerinin saatini (08:00-17:00 / 11:00-20:00 / 08:00-20:00 ek mesai)
+ * kendileri seçebilir — bazen hafta içi bir gün izin kullanmaları gerekip
+ * karşılığında Cumartesi çalışmaları gibi durumlar için. İsterlerse -bir
+ * haftada en fazla 1 antrenör olacak şekilde- Cumartesi (08:00-17:00)
+ * çalışıp karşılığında AYNI hafta içinden kendi seçtikleri bir günü
+ * izinli olurlar. Veteran sistemindeki gibi ertesi haftaya sarkan bir
+ * telafi yoktur.
+ *
+ * Pazartesi kuralı: sabit programlı antrenör (Eren Çelik) her Pazartesi
+ * izinlidir; onun 11:00-20:00'lık boşluğunu esnek antrenörlerden tam
+ * olarak biri doldurmak zorundadır (bkz. [[isAntrenorMondayLateCoveredByOthers]]).
  */
 export async function submitAntrenorWeeklyRequest(
   _prevState: RequestActionState,
@@ -280,15 +294,59 @@ export async function submitAntrenorWeeklyRequest(
     }
   }
 
-  const extraDays: boolean[] = [];
+  const shifts: ShiftType[] = [];
   for (let i = 0; i < 5; i++) {
-    extraDays.push(i !== offDayIndex && formData.get(`extra_${i}`) === "on");
+    if (i === offDayIndex) {
+      shifts.push("OFF");
+      continue;
+    }
+    const raw = String(formData.get(`day_${i}`) ?? "");
+    if (!SELECTABLE_SHIFTS.includes(raw as ShiftType)) {
+      return { error: `${WEEKDAY_NAMES_TR[i]} günü için geçerli bir saat seçmediniz.` };
+    }
+    shifts.push(raw as ShiftType);
   }
-  const anyExtra = extraDays.some(Boolean);
 
-  // Değişecek bir şey yoksa (Cumartesi de yok, ek mesai de yok) onaya
+  // --- 11:00-20:00 (Geç Mesai) çakışma kontrolü: antrenör ekibi içinde günde max 1 kişi ---
+  for (let i = 0; i < 5; i++) {
+    if (shifts[i] !== "LATE") continue;
+    const date = addDays(weekStart, i);
+    const conflict = await prisma.dayEntry.findFirst({
+      where: {
+        date,
+        shift: "LATE",
+        isSaturday: false,
+        weeklyRequest: {
+          employeeId: { not: session.employeeId },
+          status: { in: ["PENDING", "APPROVED"] },
+          employee: { role: "ANTRENOR" },
+        },
+      },
+      include: { weeklyRequest: { include: { employee: true } } },
+    });
+    if (conflict) {
+      return {
+        error: `${WEEKDAY_NAMES_TR[i]} günü için 11:00-20:00 vardiyası zaten ${conflict.weeklyRequest.employee.name} tarafından seçildi. Bir günde en fazla 1 antrenör bu saati seçebilir.`,
+      };
+    }
+  }
+
+  // --- Pazartesi kapsama kuralı: Eren o gün izinli; esnek antrenörlerden
+  // tam olarak biri 11:00-20:00 çalışmalı. Bu kişi o gün izinli değilse ve
+  // 11:00-20:00 seçmiyorsa, başka birinin karşıladığından emin olunmalı. ---
+  if (shifts[0] !== "OFF" && shifts[0] !== "LATE") {
+    const coveredByOther = await isAntrenorMondayLateCoveredByOthers(weekStart, session.employeeId);
+    if (!coveredByOther) {
+      return {
+        error:
+          "Pazartesi günü Eren izinli olduğu için ekip içinden birinin 11:00-20:00 çalışması gerekiyor. Bu gün için 11:00-20:00 seçin, ya da diğer antrenör arkadaşınızın bu saati seçmesini bekleyin.",
+      };
+    }
+  }
+
+  // Değişecek bir şey yoksa (Cumartesi de yok, tüm günler normal) onaya
   // gerek bırakmadan varsayılan tam haftaya döndür.
-  if (!workingSaturday && !anyExtra) {
+  if (!workingSaturday && shifts.every((s) => s === "NORMAL")) {
     if (existing) {
       await prisma.weeklyRequest.delete({ where: { id: existing.id } });
     }
@@ -316,14 +374,10 @@ export async function submitAntrenorWeeklyRequest(
 
     await tx.dayEntry.deleteMany({ where: { weeklyRequestId: weeklyRequest.id } });
 
-    const dayData = Array.from({ length: 5 }, (_, i) => ({
+    const dayData = shifts.map((shift, i) => ({
       weeklyRequestId: weeklyRequest.id,
       date: addDays(weekStart, i),
-      shift: (workingSaturday && i === offDayIndex
-        ? "OFF"
-        : extraDays[i]
-        ? "EXTRA"
-        : "NORMAL") as ShiftType,
+      shift,
       isSaturday: false,
     }));
 
@@ -348,8 +402,13 @@ export async function submitAntrenorWeeklyRequest(
 
 /**
  * Sağlık ekibi için: normalde hafta içi (Pzt-Cum) 08:00-17:00 sabit
- * çalışırlar, Cumartesi hiç çalışmazlar. Bir gün 20:00'a kadar kaldılarsa
- * o günü ek mesai (+3 saat) olarak işaretleyip onaya gönderebilirler.
+ * çalışırlar, Cumartesi hiç çalışmazlar. Antrenör ekibiyle aynı esneklik:
+ * hafta içi günlerinin saatini (08:00-17:00 / 11:00-20:00 / 08:00-20:00 ek
+ * mesai) kendileri seçebilir — bazen hafta içi bir gün izin kullanmaları
+ * gerekip karşılığında Cumartesi çalışmaları gibi durumlar için. İsterlerse
+ * -bir haftada en fazla 1 sağlıkçı olacak şekilde- Cumartesi (08:00-17:00)
+ * çalışıp karşılığında AYNI hafta içinden kendi seçtikleri bir günü izinli
+ * olurlar.
  */
 export async function submitSaglikciWeeklyRequest(
   _prevState: RequestActionState,
@@ -375,13 +434,77 @@ export async function submitSaglikciWeeklyRequest(
     };
   }
 
-  const extraDays: boolean[] = [];
-  for (let i = 0; i < 5; i++) {
-    extraDays.push(formData.get(`extra_${i}`) === "on");
-  }
-  const anyExtra = extraDays.some(Boolean);
+  const workingSaturday = formData.get("workingSaturday") === "on";
+  let offDayIndex: number | null = null;
 
-  if (!anyExtra) {
+  if (workingSaturday) {
+    const raw = formData.get("offDayIndex");
+    const parsed = raw === null ? NaN : Number(raw);
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 4) {
+      return {
+        error: "Cumartesi çalışmak için hafta içi hangi gün izin kullanacağınızı seçmelisiniz.",
+      };
+    }
+    offDayIndex = parsed;
+
+    // --- Cumartesi çakışma kontrolü (sağlıkçılar kendi arasında, günde max 1) ---
+    const otherSaturday = await prisma.weeklyRequest.findFirst({
+      where: {
+        weekStart,
+        workingSaturday: true,
+        status: { in: ["PENDING", "APPROVED"] },
+        employeeId: { not: session.employeeId },
+        employee: { role: "SAGLIKCI" },
+      },
+      include: { employee: true },
+    });
+    if (otherSaturday) {
+      return {
+        error: `Bu hafta Cumartesi vardiyası zaten ${otherSaturday.employee.name} tarafından talep edildi/onaylandı.`,
+      };
+    }
+  }
+
+  const shifts: ShiftType[] = [];
+  for (let i = 0; i < 5; i++) {
+    if (i === offDayIndex) {
+      shifts.push("OFF");
+      continue;
+    }
+    const raw = String(formData.get(`day_${i}`) ?? "");
+    if (!SELECTABLE_SHIFTS.includes(raw as ShiftType)) {
+      return { error: `${WEEKDAY_NAMES_TR[i]} günü için geçerli bir saat seçmediniz.` };
+    }
+    shifts.push(raw as ShiftType);
+  }
+
+  // --- 11:00-20:00 (Geç Mesai) çakışma kontrolü: sağlık ekibi içinde günde max 1 kişi ---
+  for (let i = 0; i < 5; i++) {
+    if (shifts[i] !== "LATE") continue;
+    const date = addDays(weekStart, i);
+    const conflict = await prisma.dayEntry.findFirst({
+      where: {
+        date,
+        shift: "LATE",
+        isSaturday: false,
+        weeklyRequest: {
+          employeeId: { not: session.employeeId },
+          status: { in: ["PENDING", "APPROVED"] },
+          employee: { role: "SAGLIKCI" },
+        },
+      },
+      include: { weeklyRequest: { include: { employee: true } } },
+    });
+    if (conflict) {
+      return {
+        error: `${WEEKDAY_NAMES_TR[i]} günü için 11:00-20:00 vardiyası zaten ${conflict.weeklyRequest.employee.name} tarafından seçildi. Bir günde en fazla 1 sağlıkçı bu saati seçebilir.`,
+      };
+    }
+  }
+
+  // Değişecek bir şey yoksa (Cumartesi de yok, tüm günler normal) onaya
+  // gerek bırakmadan varsayılan tam haftaya döndür.
+  if (!workingSaturday && shifts.every((s) => s === "NORMAL")) {
     if (existing) {
       await prisma.weeklyRequest.delete({ where: { id: existing.id } });
     }
@@ -398,23 +521,32 @@ export async function submitSaglikciWeeklyRequest(
         employeeId: session.employeeId,
         weekStart,
         status: "PENDING",
-        workingSaturday: false,
+        workingSaturday,
       },
       update: {
         status: "PENDING",
-        workingSaturday: false,
+        workingSaturday,
         rejectionReason: null,
       },
     });
 
     await tx.dayEntry.deleteMany({ where: { weeklyRequestId: weeklyRequest.id } });
 
-    const dayData = extraDays.map((isExtra, i) => ({
+    const dayData = shifts.map((shift, i) => ({
       weeklyRequestId: weeklyRequest.id,
       date: addDays(weekStart, i),
-      shift: (isExtra ? "EXTRA" : "NORMAL") as ShiftType,
+      shift,
       isSaturday: false,
     }));
+
+    if (workingSaturday) {
+      dayData.push({
+        weeklyRequestId: weeklyRequest.id,
+        date: addDays(weekStart, 5),
+        shift: "NORMAL" as ShiftType,
+        isSaturday: true,
+      });
+    }
 
     await tx.dayEntry.createMany({ data: dayData });
   });
