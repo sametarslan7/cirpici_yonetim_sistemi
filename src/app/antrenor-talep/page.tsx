@@ -1,7 +1,7 @@
 import { requireFlexibleAntrenor } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
-  getUpcomingWeekStart,
+  getRequestableWeekStarts,
   getWeekDates,
   formatISODate,
   formatTRDate,
@@ -10,10 +10,18 @@ import {
 import { getSaturdayTakenBy } from "@/lib/rotation";
 import AntrenorRequestForm from "@/components/AntrenorRequestForm";
 import StatusBanner from "@/components/StatusBanner";
+import WeekTabs from "@/components/WeekTabs";
 
-export default async function AntrenorTalepPage() {
+export default async function AntrenorTalepPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string }>;
+}) {
   const session = await requireFlexibleAntrenor();
-  const weekStart = getUpcomingWeekStart();
+  const params = await searchParams;
+  const [currentWeekStart, upcomingWeekStart] = getRequestableWeekStarts();
+  const weekStart =
+    params.week === formatISODate(currentWeekStart) ? currentWeekStart : upcomingWeekStart;
   const weekDates = getWeekDates(weekStart);
 
   const existing = await prisma.weeklyRequest.findUnique({
@@ -50,6 +58,15 @@ export default async function AntrenorTalepPage() {
           hocanın onayına gidecektir.
         </p>
       </div>
+
+      <WeekTabs
+        basePath="/antrenor-talep"
+        weeks={[
+          { start: currentWeekStart, label: "Bu Hafta" },
+          { start: upcomingWeekStart, label: "Gelecek Hafta" },
+        ]}
+        activeISO={formatISODate(weekStart)}
+      />
 
       {existing && <StatusBanner status={existing.status} reason={existing.rejectionReason} />}
 

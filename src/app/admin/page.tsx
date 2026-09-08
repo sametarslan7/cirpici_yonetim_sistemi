@@ -58,6 +58,7 @@ export default async function AdminPage() {
                       : r.employee.role === "SAGLIKCI"
                       ? "Sağlıkçı"
                       : undefined,
+                  weekStart: r.weekStart,
                   workingSaturday: r.workingSaturday,
                   days: r.days,
                 }}

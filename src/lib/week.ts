@@ -30,12 +30,36 @@ export function getMonday(d: Date): Date {
 }
 
 /**
- * Talepler Pazar günü, bir sonraki haftayı hedefleyerek girilir.
- * Bu yüzden "şu an geçerli olan talep haftası" her zaman
- * içinde bulunduğumuz haftanın bir sonrakidir.
+ * Talepler normalde Pazar günü, bir sonraki haftayı hedefleyerek girilir.
+ * Bu yüzden varsayılan/asıl talep haftası içinde bulunduğumuz haftanın
+ * bir sonrakidir. (İçinde bulunulan hafta için de talep girilebilir,
+ * bkz. [[getCurrentWeekStart]]/[[getRequestableWeekStarts]].)
  */
 export function getUpcomingWeekStart(now: Date = new Date()): Date {
   return addDays(getMonday(now), 7);
+}
+
+/** İçinde bulunduğumuz haftanın Pazartesi'si. */
+export function getCurrentWeekStart(now: Date = new Date()): Date {
+  return getMonday(now);
+}
+
+/**
+ * Kullanıcıların talep/mesai saati girebileceği haftalar: içinde
+ * bulunulan hafta (unutulan ya da sonradan eklenmesi gereken girişler
+ * için) ve bir sonraki hafta (asıl/olağan akış). Sıra önemli — ilk eleman
+ * varsayılan olarak seçili olmayan, ikinci eleman ("gelecek hafta")
+ * sayfaların varsayılan/öntanımlı sekmesidir.
+ */
+export function getRequestableWeekStarts(now: Date = new Date()): [Date, Date] {
+  return [getCurrentWeekStart(now), getUpcomingWeekStart(now)];
+}
+
+/** Verilen ISO tarihin (o anki `now`'a göre) girilebilir iki haftadan
+ * biri olup olmadığını kontrol eder — form submit'lerinde sunucu taraflı
+ * doğrulama için kullanılır. */
+export function isRequestableWeekStart(iso: string, now: Date = new Date()): boolean {
+  return getRequestableWeekStarts(now).some((d) => formatISODate(d) === iso);
 }
 
 /** Pazartesi'den Cumartesi'ye kadar 6 günlük tarih dizisi. */

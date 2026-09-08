@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireVeteran, requireNewTeam, requireFlexibleAntrenor, requireSaglikci } from "@/lib/session";
-import { getUpcomingWeekStart, addDays, formatISODate, WEEKDAY_NAMES_TR } from "@/lib/week";
+import { isRequestableWeekStart, parseISODate, addDays, WEEKDAY_NAMES_TR } from "@/lib/week";
 import { getMondayCompOffEmployeeId, getNewTeamWeekOffs } from "@/lib/rotation";
 import { revalidatePath } from "next/cache";
 import type { ShiftType } from "@prisma/client";
@@ -17,15 +17,14 @@ export async function submitWeeklyRequest(
 ): Promise<RequestActionState> {
   const session = await requireVeteran();
 
-  const expectedWeekStart = getUpcomingWeekStart();
   const submittedWeekStart = String(formData.get("weekStart") ?? "");
-  if (submittedWeekStart !== formatISODate(expectedWeekStart)) {
+  if (!isRequestableWeekStart(submittedWeekStart)) {
     return {
       error:
-        "Bu form güncel talep haftası için değil. Lütfen sayfayı yenileyip tekrar deneyin.",
+        "Bu form geçerli bir talep haftası için değil. Lütfen sayfayı yenileyip tekrar deneyin.",
     };
   }
-  const weekStart = expectedWeekStart;
+  const weekStart = parseISODate(submittedWeekStart);
 
   // Zaten onaylanmış bir talep varsa, önce yönetici reddetmeden değiştirilemez.
   const existing = await prisma.weeklyRequest.findUnique({
@@ -177,14 +176,13 @@ export async function submitNewTeamDayOff(
 ): Promise<RequestActionState> {
   const session = await requireNewTeam();
 
-  const expectedWeekStart = getUpcomingWeekStart();
   const submittedWeekStart = String(formData.get("weekStart") ?? "");
-  if (submittedWeekStart !== formatISODate(expectedWeekStart)) {
+  if (!isRequestableWeekStart(submittedWeekStart)) {
     return {
-      error: "Bu form güncel hafta için değil. Lütfen sayfayı yenileyip tekrar deneyin.",
+      error: "Bu form geçerli bir hafta için değil. Lütfen sayfayı yenileyip tekrar deneyin.",
     };
   }
-  const weekStart = expectedWeekStart;
+  const weekStart = parseISODate(submittedWeekStart);
 
   const dayOffIndex = Number(formData.get("dayOffIndex"));
   if (!Number.isInteger(dayOffIndex) || dayOffIndex < 0 || dayOffIndex > 4) {
@@ -232,15 +230,14 @@ export async function submitAntrenorWeeklyRequest(
 ): Promise<RequestActionState> {
   const session = await requireFlexibleAntrenor();
 
-  const expectedWeekStart = getUpcomingWeekStart();
   const submittedWeekStart = String(formData.get("weekStart") ?? "");
-  if (submittedWeekStart !== formatISODate(expectedWeekStart)) {
+  if (!isRequestableWeekStart(submittedWeekStart)) {
     return {
       error:
-        "Bu form güncel talep haftası için değil. Lütfen sayfayı yenileyip tekrar deneyin.",
+        "Bu form geçerli bir talep haftası için değil. Lütfen sayfayı yenileyip tekrar deneyin.",
     };
   }
-  const weekStart = expectedWeekStart;
+  const weekStart = parseISODate(submittedWeekStart);
 
   const existing = await prisma.weeklyRequest.findUnique({
     where: { employeeId_weekStart: { employeeId: session.employeeId, weekStart } },
@@ -360,14 +357,13 @@ export async function submitSaglikciWeeklyRequest(
 ): Promise<RequestActionState> {
   const session = await requireSaglikci();
 
-  const expectedWeekStart = getUpcomingWeekStart();
   const submittedWeekStart = String(formData.get("weekStart") ?? "");
-  if (submittedWeekStart !== formatISODate(expectedWeekStart)) {
+  if (!isRequestableWeekStart(submittedWeekStart)) {
     return {
-      error: "Bu form güncel hafta için değil. Lütfen sayfayı yenileyip tekrar deneyin.",
+      error: "Bu form geçerli bir hafta için değil. Lütfen sayfayı yenileyip tekrar deneyin.",
     };
   }
-  const weekStart = expectedWeekStart;
+  const weekStart = parseISODate(submittedWeekStart);
 
   const existing = await prisma.weeklyRequest.findUnique({
     where: { employeeId_weekStart: { employeeId: session.employeeId, weekStart } },

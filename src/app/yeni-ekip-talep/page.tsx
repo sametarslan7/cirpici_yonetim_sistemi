@@ -1,7 +1,7 @@
 import { requireNewTeam } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
-  getUpcomingWeekStart,
+  getRequestableWeekStarts,
   getWeekDates,
   formatISODate,
   formatTRDate,
@@ -10,10 +10,18 @@ import {
 import { suggestNewTeamDayOffIndex } from "@/lib/rotation";
 import { NEW_TEAM_SHIFT, NEW_TEAM_SATURDAY_SHIFT } from "@/lib/constants";
 import NewTeamDayOffForm from "@/components/NewTeamDayOffForm";
+import WeekTabs from "@/components/WeekTabs";
 
-export default async function YeniEkipTalepPage() {
+export default async function YeniEkipTalepPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string }>;
+}) {
   const session = await requireNewTeam();
-  const weekStart = getUpcomingWeekStart();
+  const params = await searchParams;
+  const [currentWeekStart, upcomingWeekStart] = getRequestableWeekStarts();
+  const weekStart =
+    params.week === formatISODate(currentWeekStart) ? currentWeekStart : upcomingWeekStart;
   const weekDates = getWeekDates(weekStart);
 
   const employee = await prisma.employee.findUnique({ where: { id: session.employeeId } });
@@ -36,6 +44,15 @@ export default async function YeniEkipTalepPage() {
           olur.
         </p>
       </div>
+
+      <WeekTabs
+        basePath="/yeni-ekip-talep"
+        weeks={[
+          { start: currentWeekStart, label: "Bu Hafta" },
+          { start: upcomingWeekStart, label: "Gelecek Hafta" },
+        ]}
+        activeISO={formatISODate(weekStart)}
+      />
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <NewTeamDayOffForm

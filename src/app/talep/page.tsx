@@ -1,6 +1,12 @@
 import { requireVeteran } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { getUpcomingWeekStart, getWeekDates, formatISODate, formatTRDate, WEEKDAY_NAMES_TR } from "@/lib/week";
+import {
+  getRequestableWeekStarts,
+  getWeekDates,
+  formatISODate,
+  formatTRDate,
+  WEEKDAY_NAMES_TR,
+} from "@/lib/week";
 import {
   getSaturdayTakenBy,
   getMondayCompOffEmployeeId,
@@ -8,11 +14,19 @@ import {
 import { getLateConflictMap } from "@/lib/schedule";
 import RequestForm from "@/components/RequestForm";
 import StatusBanner from "@/components/StatusBanner";
+import WeekTabs from "@/components/WeekTabs";
 import type { ShiftType } from "@prisma/client";
 
-export default async function TalepPage() {
+export default async function TalepPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string }>;
+}) {
   const session = await requireVeteran();
-  const weekStart = getUpcomingWeekStart();
+  const params = await searchParams;
+  const [currentWeekStart, upcomingWeekStart] = getRequestableWeekStarts();
+  const weekStart =
+    params.week === formatISODate(currentWeekStart) ? currentWeekStart : upcomingWeekStart;
   const weekDates = getWeekDates(weekStart);
 
   const existing = await prisma.weeklyRequest.findUnique({
@@ -50,6 +64,15 @@ export default async function TalepPage() {
           girin. Bu talep Mahsum hocanın onayına gidecektir.
         </p>
       </div>
+
+      <WeekTabs
+        basePath="/talep"
+        weeks={[
+          { start: currentWeekStart, label: "Bu Hafta" },
+          { start: upcomingWeekStart, label: "Gelecek Hafta" },
+        ]}
+        activeISO={formatISODate(weekStart)}
+      />
 
       {existing && (
         <StatusBanner status={existing.status} reason={existing.rejectionReason} />

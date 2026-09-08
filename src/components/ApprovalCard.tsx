@@ -3,13 +3,14 @@
 import { useActionState, useState } from "react";
 import { approveRequest, rejectRequest } from "@/app/actions/admin";
 import { SHIFT_META } from "@/lib/constants";
-import { WEEKDAY_NAMES_TR, formatTRDate } from "@/lib/week";
+import { WEEKDAY_NAMES_TR, addDays, formatTRDate } from "@/lib/week";
 import type { ShiftType } from "@prisma/client";
 
 type PendingRequest = {
   id: string;
   employeeName: string;
   employeeRoleLabel?: string;
+  weekStart: Date;
   workingSaturday: boolean;
   days: { date: Date; shift: ShiftType; isSaturday: boolean }[];
 };
@@ -37,6 +38,10 @@ export default function ApprovalCard({ request }: { request: PendingRequest }) {
           Onay bekliyor
         </span>
       </div>
+
+      <p className="mt-1 text-xs text-slate-400">
+        {formatTRDate(request.weekStart)} - {formatTRDate(addDays(request.weekStart, 5))} haftası
+      </p>
 
       <div className="mt-3 flex flex-wrap gap-2">
         {weekdayDays.map((d, i) => (

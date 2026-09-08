@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
-  getUpcomingWeekStart,
+  getRequestableWeekStarts,
   getWeekDates,
   formatISODate,
   formatTRDate,
@@ -12,13 +12,18 @@ import {
 import { ANTRENOR_FIXED_SHIFT, SAGLIKCI_SHIFT_TIME } from "@/lib/constants";
 import SaglikciExtraForm from "@/components/SaglikciExtraForm";
 import StatusBanner from "@/components/StatusBanner";
+import WeekTabs from "@/components/WeekTabs";
 
 const ROLE_LABEL: Record<"SAGLIKCI" | "ANTRENOR", string> = {
   SAGLIKCI: "Sağlık Ekibi",
   ANTRENOR: "Antrenör Ekibi (Sabit Program)",
 };
 
-export default async function PanelPage() {
+export default async function PanelPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string }>;
+}) {
   const session = await requireStaff();
 
   // Esnek antrenörler gün belirleme talebini /antrenor-talep sayfasından girer.
@@ -30,9 +35,14 @@ export default async function PanelPage() {
   let weekStartISO = "";
   let weekDayInfo: { index: number; label: string; dateLabel: string }[] = [];
   let initialExtraDays: boolean[] = [];
+  let currentWeekStart = new Date();
+  let upcomingWeekStart = new Date();
 
   if (session.role === "SAGLIKCI") {
-    const weekStart = getUpcomingWeekStart();
+    const params = await searchParams;
+    [currentWeekStart, upcomingWeekStart] = getRequestableWeekStarts();
+    const weekStart =
+      params.week === formatISODate(currentWeekStart) ? currentWeekStart : upcomingWeekStart;
     const weekDates = getWeekDates(weekStart);
     weekStartISO = formatISODate(weekStart);
     weekDayInfo = weekDates.slice(0, 5).map((d, i) => ({
@@ -104,6 +114,14 @@ export default async function PanelPage() {
             Bu hafta içi bir gün 20:00&apos;a kadar kaldıysanız işaretleyip talep gönderin;
             Mahsum hocanın onayına gidecek ve aylık raporda ek mesai saati olarak görünecektir.
           </p>
+          <WeekTabs
+            basePath="/panel"
+            weeks={[
+              { start: currentWeekStart, label: "Bu Hafta" },
+              { start: upcomingWeekStart, label: "Gelecek Hafta" },
+            ]}
+            activeISO={weekStartISO}
+          />
           {existing && <StatusBanner status={existing.status} reason={existing.rejectionReason} />}
           <SaglikciExtraForm
             weekStartISO={weekStartISO}
