@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
-  getRequestableWeekStarts,
+  getSeasonWeekStarts,
+  getSeasonWeekTabs,
+  getUpcomingWeekStart,
   getWeekDates,
   formatISODate,
   formatTRDate,
@@ -42,14 +44,17 @@ export default async function PanelPage({
   let initialOffDayIndex: number | null = null;
   let saturdayLockedByOther: string | null = null;
   let lateConflicts: (string | null)[] = [];
-  let currentWeekStart = new Date();
-  let upcomingWeekStart = new Date();
+  let weekTabs: { start: Date; label: string }[] = [];
 
   if (session.role === "SAGLIKCI") {
     const params = await searchParams;
-    [currentWeekStart, upcomingWeekStart] = getRequestableWeekStarts();
-    const weekStart =
-      params.week === formatISODate(currentWeekStart) ? currentWeekStart : upcomingWeekStart;
+    const seasonWeeks = getSeasonWeekStarts();
+    const upcomingWeekStart = getUpcomingWeekStart();
+    const matchedWeekStart = params.week
+      ? seasonWeeks.find((d) => formatISODate(d) === params.week)
+      : undefined;
+    const weekStart = matchedWeekStart ?? upcomingWeekStart;
+    weekTabs = getSeasonWeekTabs();
     const weekDates = getWeekDates(weekStart);
     weekStartISO = formatISODate(weekStart);
     weekDayInfo = weekDates.slice(0, 5).map((d, i) => ({
@@ -144,14 +149,7 @@ export default async function PanelPage({
             ya da 20:00&apos;a kadar ek mesai yapacaksanız aşağıdan işaretleyip talep gönderin.
             Mahsum hocanın onayına gidecek ve aylık raporda görünecektir.
           </p>
-          <WeekTabs
-            basePath="/panel"
-            weeks={[
-              { start: currentWeekStart, label: "Bu Hafta" },
-              { start: upcomingWeekStart, label: "Gelecek Hafta" },
-            ]}
-            activeISO={weekStartISO}
-          />
+          <WeekTabs basePath="/panel" weeks={weekTabs} activeISO={weekStartISO} />
           {existing && <StatusBanner status={existing.status} reason={existing.rejectionReason} />}
           <SaglikciRequestForm
             weekStartISO={weekStartISO}

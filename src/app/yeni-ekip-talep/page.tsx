@@ -1,7 +1,9 @@
 import { requireNewTeam } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
-  getRequestableWeekStarts,
+  getSeasonWeekStarts,
+  getSeasonWeekTabs,
+  getUpcomingWeekStart,
   getWeekDates,
   formatISODate,
   formatTRDate,
@@ -19,9 +21,12 @@ export default async function YeniEkipTalepPage({
 }) {
   const session = await requireNewTeam();
   const params = await searchParams;
-  const [currentWeekStart, upcomingWeekStart] = getRequestableWeekStarts();
-  const weekStart =
-    params.week === formatISODate(currentWeekStart) ? currentWeekStart : upcomingWeekStart;
+  const seasonWeeks = getSeasonWeekStarts();
+  const upcomingWeekStart = getUpcomingWeekStart();
+  const matchedWeekStart = params.week
+    ? seasonWeeks.find((d) => formatISODate(d) === params.week)
+    : undefined;
+  const weekStart = matchedWeekStart ?? upcomingWeekStart;
   const weekDates = getWeekDates(weekStart);
 
   const employee = await prisma.employee.findUnique({ where: { id: session.employeeId } });
@@ -47,10 +52,7 @@ export default async function YeniEkipTalepPage({
 
       <WeekTabs
         basePath="/yeni-ekip-talep"
-        weeks={[
-          { start: currentWeekStart, label: "Bu Hafta" },
-          { start: upcomingWeekStart, label: "Gelecek Hafta" },
-        ]}
+        weeks={getSeasonWeekTabs()}
         activeISO={formatISODate(weekStart)}
       />
 

@@ -1,7 +1,9 @@
 import { requireVeteran } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
-  getRequestableWeekStarts,
+  getSeasonWeekStarts,
+  getSeasonWeekTabs,
+  getUpcomingWeekStart,
   getWeekDates,
   formatISODate,
   formatTRDate,
@@ -24,9 +26,12 @@ export default async function TalepPage({
 }) {
   const session = await requireVeteran();
   const params = await searchParams;
-  const [currentWeekStart, upcomingWeekStart] = getRequestableWeekStarts();
-  const weekStart =
-    params.week === formatISODate(currentWeekStart) ? currentWeekStart : upcomingWeekStart;
+  const seasonWeeks = getSeasonWeekStarts();
+  const upcomingWeekStart = getUpcomingWeekStart();
+  const matchedWeekStart = params.week
+    ? seasonWeeks.find((d) => formatISODate(d) === params.week)
+    : undefined;
+  const weekStart = matchedWeekStart ?? upcomingWeekStart;
   const weekDates = getWeekDates(weekStart);
 
   const existing = await prisma.weeklyRequest.findUnique({
@@ -67,10 +72,7 @@ export default async function TalepPage({
 
       <WeekTabs
         basePath="/talep"
-        weeks={[
-          { start: currentWeekStart, label: "Bu Hafta" },
-          { start: upcomingWeekStart, label: "Gelecek Hafta" },
-        ]}
+        weeks={getSeasonWeekTabs()}
         activeISO={formatISODate(weekStart)}
       />
 

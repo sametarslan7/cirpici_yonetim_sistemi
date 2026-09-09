@@ -33,7 +33,7 @@ export function getMonday(d: Date): Date {
  * Talepler normalde Pazar günü, bir sonraki haftayı hedefleyerek girilir.
  * Bu yüzden varsayılan/asıl talep haftası içinde bulunduğumuz haftanın
  * bir sonrakidir. (İçinde bulunulan hafta için de talep girilebilir,
- * bkz. [[getCurrentWeekStart]]/[[getRequestableWeekStarts]].)
+ * bkz. [[getCurrentWeekStart]]/[[getSeasonWeekStarts]].)
  */
 export function getUpcomingWeekStart(now: Date = new Date()): Date {
   return addDays(getMonday(now), 7);
@@ -44,22 +44,63 @@ export function getCurrentWeekStart(now: Date = new Date()): Date {
   return getMonday(now);
 }
 
+export const MONTH_NAMES_TR = [
+  "Ocak",
+  "Şubat",
+  "Mart",
+  "Nisan",
+  "Mayıs",
+  "Haziran",
+  "Temmuz",
+  "Ağustos",
+  "Eylül",
+  "Ekim",
+  "Kasım",
+  "Aralık",
+] as const;
+
 /**
- * Kullanıcıların talep/mesai saati girebileceği haftalar: içinde
- * bulunulan hafta (unutulan ya da sonradan eklenmesi gereken girişler
- * için) ve bir sonraki hafta (asıl/olağan akış). Sıra önemli — ilk eleman
- * varsayılan olarak seçili olmayan, ikinci eleman ("gelecek hafta")
- * sayfaların varsayılan/öntanımlı sekmesidir.
+ * Kullanıcıların talep/mesai saati girebileceği sezonun tüm haftalarının
+ * Pazartesi günleri: `now`'un yılına ait 1 Eylül'ü kapsayan haftadan
+ * başlar, 31 Aralık'ı kapsayan haftada biter. Üstteki hafta sekmelerinde
+ * (bkz. [[WeekTabs]]) yana doğru kaydırılabilir şekilde listelenir.
  */
-export function getRequestableWeekStarts(now: Date = new Date()): [Date, Date] {
-  return [getCurrentWeekStart(now), getUpcomingWeekStart(now)];
+export function getSeasonWeekStarts(now: Date = new Date()): Date[] {
+  const year = toUTCMidnight(now).getUTCFullYear();
+  const firstMonday = getMonday(new Date(Date.UTC(year, 8, 1)));
+  const lastMonday = getMonday(new Date(Date.UTC(year, 11, 31)));
+  const weeks: Date[] = [];
+  for (let d = firstMonday; d.getTime() <= lastMonday.getTime(); d = addDays(d, 7)) {
+    weeks.push(d);
+  }
+  return weeks;
 }
 
-/** Verilen ISO tarihin (o anki `now`'a göre) girilebilir iki haftadan
- * biri olup olmadığını kontrol eder — form submit'lerinde sunucu taraflı
- * doğrulama için kullanılır. */
+/**
+ * Hafta sekmelerinde gösterilecek {başlangıç, etiket} listesi. İçinde
+ * bulunulan hafta "Bu Hafta", bir sonraki hafta "Gelecek Hafta" olarak
+ * etiketlenir; sezonun diğer haftaları ait oldukları ayın adıyla gösterilir.
+ */
+export function getSeasonWeekTabs(now: Date = new Date()): { start: Date; label: string }[] {
+  const currentISO = formatISODate(getCurrentWeekStart(now));
+  const upcomingISO = formatISODate(getUpcomingWeekStart(now));
+  return getSeasonWeekStarts(now).map((start) => {
+    const iso = formatISODate(start);
+    const label =
+      iso === currentISO
+        ? "Bu Hafta"
+        : iso === upcomingISO
+          ? "Gelecek Hafta"
+          : MONTH_NAMES_TR[start.getUTCMonth()];
+    return { start, label };
+  });
+}
+
+/** Verilen ISO tarihin (o anki `now`'a göre) girilebilir sezon
+ * haftalarından biri olup olmadığını kontrol eder — form submit'lerinde
+ * sunucu taraflı doğrulama için kullanılır. */
 export function isRequestableWeekStart(iso: string, now: Date = new Date()): boolean {
-  return getRequestableWeekStarts(now).some((d) => formatISODate(d) === iso);
+  return getSeasonWeekStarts(now).some((d) => formatISODate(d) === iso);
 }
 
 /** Pazartesi'den Cumartesi'ye kadar 6 günlük tarih dizisi. */
