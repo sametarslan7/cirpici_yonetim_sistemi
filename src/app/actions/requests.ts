@@ -446,23 +446,8 @@ export async function submitSaglikciWeeklyRequest(
       };
     }
     offDayIndex = parsed;
-
-    // --- Cumartesi çakışma kontrolü (sağlıkçılar kendi arasında, günde max 1) ---
-    const otherSaturday = await prisma.weeklyRequest.findFirst({
-      where: {
-        weekStart,
-        workingSaturday: true,
-        status: { in: ["PENDING", "APPROVED"] },
-        employeeId: { not: session.employeeId },
-        employee: { role: "SAGLIKCI" },
-      },
-      include: { employee: true },
-    });
-    if (otherSaturday) {
-      return {
-        error: `Bu hafta Cumartesi vardiyası zaten ${otherSaturday.employee.name} tarafından talep edildi/onaylandı.`,
-      };
-    }
+    // Sağlık ekibinde Cumartesi için tek kişilik bir kontenjan yok — herkes
+    // birbirinden bağımsız olarak kendi haftasında bu seçeneği kullanabilir.
   }
 
   const shifts: ShiftType[] = [];

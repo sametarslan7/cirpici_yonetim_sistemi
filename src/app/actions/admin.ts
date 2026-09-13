@@ -22,7 +22,9 @@ export async function approveRequest(
   // Güvenlik amaçlı son bir kez daha çakışma kontrolü (aynı anda iki talep
   // onaylanmaya çalışılırsa diye). Eski ekip ve antrenör ekibinin Cumartesi
   // kontenjanları birbirinden bağımsız olduğu için role ile sınırlanır.
-  if (request.workingSaturday) {
+  // Sağlık ekibinde Cumartesi için tek kişilik bir kontenjan yok — herkes
+  // bağımsız olarak onaylanabilir, bu yüzden bu kontrole dahil değil.
+  if (request.workingSaturday && request.employee.role !== "SAGLIKCI") {
     const conflict = await prisma.weeklyRequest.findFirst({
       where: {
         weekStart: request.weekStart,

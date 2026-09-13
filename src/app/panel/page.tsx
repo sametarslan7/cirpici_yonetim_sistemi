@@ -11,7 +11,6 @@ import {
   formatTRDate,
   WEEKDAY_NAMES_TR,
 } from "@/lib/week";
-import { getSaturdayTakenBy } from "@/lib/rotation";
 import { getLateConflictMap } from "@/lib/schedule";
 import { ANTRENOR_FIXED_SHIFT, SAGLIKCI_SHIFT_TIME } from "@/lib/constants";
 import SaglikciRequestForm from "@/components/SaglikciRequestForm";
@@ -42,7 +41,6 @@ export default async function PanelPage({
   let initialShifts: ShiftType[] = [];
   let initialWorkingSaturday = false;
   let initialOffDayIndex: number | null = null;
-  let saturdayLockedByOther: string | null = null;
   let lateConflicts: (string | null)[] = [];
   let weekTabs: { start: Date; label: string }[] = [];
 
@@ -69,13 +67,7 @@ export default async function PanelPage({
     });
     existing = req ? { status: req.status, rejectionReason: req.rejectionReason } : null;
 
-    const [takenBy, conflicts] = await Promise.all([
-      getSaturdayTakenBy(weekStart, "SAGLIKCI"),
-      getLateConflictMap(weekStart, session.employeeId, "SAGLIKCI"),
-    ]);
-    saturdayLockedByOther =
-      takenBy && takenBy.employeeId !== session.employeeId ? takenBy.employee.name : null;
-    lateConflicts = conflicts;
+    lateConflicts = await getLateConflictMap(weekStart, session.employeeId, "SAGLIKCI");
 
     initialWorkingSaturday = req?.workingSaturday ?? false;
     const offEntry = req?.days.find((d) => !d.isSaturday && d.shift === "OFF");
@@ -157,7 +149,6 @@ export default async function PanelPage({
             initialShifts={initialShifts}
             initialWorkingSaturday={initialWorkingSaturday}
             initialOffDayIndex={initialOffDayIndex}
-            saturdayLockedByOther={saturdayLockedByOther}
             lateConflicts={lateConflicts}
             locked={existing?.status === "APPROVED"}
           />
