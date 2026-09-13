@@ -108,9 +108,10 @@ export default function AntrenorRequestForm({
                           </p>
                         )}
                         {day.index === 0 && (
-                          <p className="mt-1 text-[11px] text-amber-600">
-                            Eren Pazartesi izinli — ekipten birinin bu gün 11:00-20:00
-                            çalışması gerekir.
+                          <p className="mt-1 text-[11px] text-slate-400">
+                            Not: Eren Pazartesi izinli — ekipten birinin bu gün 11:00-20:00
+                            çalışması iyi olur, ama zorunlu değil, diğer arkadaşınızın
+                            seçimini beklemeden gönderebilirsiniz.
                           </p>
                         )}
                       </>

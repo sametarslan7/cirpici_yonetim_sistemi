@@ -6,7 +6,6 @@ import { isRequestableWeekStart, parseISODate, addDays, WEEKDAY_NAMES_TR } from 
 import {
   getMondayCompOffEmployeeId,
   getNewTeamWeekOffs,
-  isAntrenorMondayLateCoveredByOthers,
 } from "@/lib/rotation";
 import { revalidatePath } from "next/cache";
 import type { ShiftType } from "@prisma/client";
@@ -234,9 +233,11 @@ export async function submitNewTeamDayOff(
  * izinli olurlar. Veteran sistemindeki gibi ertesi haftaya sarkan bir
  * telafi yoktur.
  *
- * Pazartesi kuralı: sabit programlı antrenör (Eren Çelik) her Pazartesi
- * izinlidir; onun 11:00-20:00'lık boşluğunu esnek antrenörlerden tam
- * olarak biri doldurmak zorundadır (bkz. [[isAntrenorMondayLateCoveredByOthers]]).
+ * Pazartesi notu: sabit programlı antrenör (Eren Çelik) her Pazartesi
+ * izinlidir; onun 11:00-20:00'lık boşluğunu esnek antrenörlerden birinin
+ * doldurması idealdir, ama bu artık talep gönderirken zorunlu tutulmuyor
+ * (kimse diğerinin seçimini beklemek zorunda kalmasın diye) — sadece
+ * formda bilgilendirme notu olarak gösterilir.
  */
 export async function submitAntrenorWeeklyRequest(
   _prevState: RequestActionState,
@@ -331,18 +332,10 @@ export async function submitAntrenorWeeklyRequest(
     }
   }
 
-  // --- Pazartesi kapsama kuralı: Eren o gün izinli; esnek antrenörlerden
-  // tam olarak biri 11:00-20:00 çalışmalı. Bu kişi o gün izinli değilse ve
-  // 11:00-20:00 seçmiyorsa, başka birinin karşıladığından emin olunmalı. ---
-  if (shifts[0] !== "OFF" && shifts[0] !== "LATE") {
-    const coveredByOther = await isAntrenorMondayLateCoveredByOthers(weekStart, session.employeeId);
-    if (!coveredByOther) {
-      return {
-        error:
-          "Pazartesi günü Eren izinli olduğu için ekip içinden birinin 11:00-20:00 çalışması gerekiyor. Bu gün için 11:00-20:00 seçin, ya da diğer antrenör arkadaşınızın bu saati seçmesini bekleyin.",
-      };
-    }
-  }
+  // Pazartesi kapsama: Eren o gün izinli olduğu için ekipten birinin
+  // 11:00-20:00 çalışması idealdir, ama bu artık zorunlu tutulmuyor — her
+  // antrenör diğerinin seçimini beklemeden kendi talebini gönderebilir
+  // (bkz. AntrenorRequestForm'daki bilgilendirme notu).
 
   // Değişecek bir şey yoksa (Cumartesi de yok, tüm günler normal) onaya
   // gerek bırakmadan varsayılan tam haftaya döndür.
