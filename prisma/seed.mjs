@@ -11,9 +11,9 @@ const VETERANS = [
 ];
 
 const NEW_TEAM = [
-  { name: "Duhan Batıkan", password: "4271" },
-  { name: "Minel", password: "5830" },
-  { name: "Bora", password: "7104" },
+  { name: "Duhan Batıkan Yıldırım", password: "4271" },
+  { name: "Minel Yıldırım", password: "5830" },
+  { name: "Bora Çakır", password: "7104" },
 ];
 
 async function main() {
