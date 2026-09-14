@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireManager } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 import { parseISODate } from "@/lib/week";
+import { NEW_TEAM_SATURDAY_OPT_IN_EPOCH } from "@/lib/rotation";
 
 export type AdminActionState = { error?: string; success?: boolean } | null;
 
@@ -82,18 +83,29 @@ export async function setNewTeamDayOff(
   await requireManager();
   const employeeId = String(formData.get("employeeId") ?? "");
   const weekStartISO = String(formData.get("weekStart") ?? "");
-  const dayOffIndex = Number(formData.get("dayOffIndex"));
 
-  if (!employeeId || !weekStartISO || Number.isNaN(dayOffIndex) || dayOffIndex < 0 || dayOffIndex > 4) {
+  if (!employeeId || !weekStartISO) {
     return { error: "Geçersiz veri." };
   }
 
   const weekStart = parseISODate(weekStartISO);
+  const saturdayOptInActive = weekStart.getTime() >= NEW_TEAM_SATURDAY_OPT_IN_EPOCH.getTime();
+  const workingSaturday = saturdayOptInActive && formData.get("workingSaturday") === "on";
+
+  let dayOffIndex: number;
+  if (workingSaturday) {
+    dayOffIndex = 0; // Cumartesi çalışan otomatik Pazartesi izinli.
+  } else {
+    dayOffIndex = Number(formData.get("dayOffIndex"));
+    if (Number.isNaN(dayOffIndex) || dayOffIndex < 0 || dayOffIndex > 4) {
+      return { error: "Geçersiz veri." };
+    }
+  }
 
   await prisma.newTeamWeekOff.upsert({
     where: { employeeId_weekStart: { employeeId, weekStart } },
-    create: { employeeId, weekStart, dayOffIndex },
-    update: { dayOffIndex },
+    create: { employeeId, weekStart, dayOffIndex, workingSaturday },
+    update: { dayOffIndex, workingSaturday },
   });
 
   revalidatePath("/admin");

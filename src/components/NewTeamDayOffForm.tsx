@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { submitNewTeamDayOff } from "@/app/actions/requests";
 
 type DayInfo = { index: number; label: string; dateLabel: string };
@@ -10,39 +10,71 @@ export default function NewTeamDayOffForm({
   weekDates,
   initialDayOffIndex,
   isOverridden,
+  saturdayOptInActive,
+  initialWorkingSaturday,
 }: {
   weekStartISO: string;
   weekDates: DayInfo[];
   initialDayOffIndex: number;
   isOverridden: boolean;
+  saturdayOptInActive: boolean;
+  initialWorkingSaturday: boolean;
 }) {
   const [state, formAction, pending] = useActionState(submitNewTeamDayOff, null);
+  const [workingSaturday, setWorkingSaturday] = useState(initialWorkingSaturday);
 
   return (
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="weekStart" value={weekStartISO} />
 
-      <label className="block">
-        <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
-          İzinli Olmak İstediğim Gün
-        </span>
-        <select
-          name="dayOffIndex"
-          defaultValue={initialDayOffIndex}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none sm:w-auto"
-        >
-          {weekDates.map((day) => (
-            <option key={day.index} value={day.index}>
-              {day.label} ({day.dateLabel})
-            </option>
-          ))}
-        </select>
-      </label>
+      {saturdayOptInActive && (
+        <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+          <input
+            type="checkbox"
+            name="workingSaturday"
+            checked={workingSaturday}
+            onChange={(e) => setWorkingSaturday(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+          />
+          <span className="text-sm text-slate-700">
+            Bu hafta Cumartesi çalışmak istiyorum.
+            <span className="mt-0.5 block text-xs text-slate-400">
+              İşaretlerseniz izin gününüz otomatik olarak Pazartesi olur, Salı-Cumartesi 5 gün
+              çalışırsınız; hafta içinden gün seçemezsiniz.
+            </span>
+          </span>
+        </label>
+      )}
+
+      {workingSaturday ? (
+        <p className="rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800">
+          İzinli olacağınız gün: <strong>Pazartesi</strong> (otomatik atandı).
+        </p>
+      ) : (
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
+            İzinli Olmak İstediğim Gün
+          </span>
+          <select
+            name="dayOffIndex"
+            defaultValue={initialDayOffIndex}
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none sm:w-auto"
+          >
+            {weekDates.map((day) => (
+              <option key={day.index} value={day.index}>
+                {day.label} ({day.dateLabel})
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <p className="text-xs text-slate-400">
-        {isOverridden
-          ? "Bu hafta için daha önce bir gün seçtiniz, aşağıdan değiştirebilirsiniz."
-          : "Sistemin rotasyonla önerdiği gün önceden işaretli geldi, isterseniz değiştirebilirsiniz."}{" "}
+        {workingSaturday
+          ? "Cumartesi çalışmayı seçtiğiniz için izin gününüz sistem tarafından belirlenir."
+          : isOverridden
+            ? "Bu hafta için daha önce bir gün seçtiniz, aşağıdan değiştirebilirsiniz."
+            : "Sistemin rotasyonla önerdiği gün önceden işaretli geldi, isterseniz değiştirebilirsiniz."}{" "}
         Mahsum hoca gerekirse admin panelinden yine değiştirebilir.
       </p>
 

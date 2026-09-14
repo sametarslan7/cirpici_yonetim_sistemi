@@ -83,10 +83,12 @@ export async function getApprovedWeekSchedule(weekStart: Date): Promise<Schedule
   });
 
   const newTeamOffs = await getNewTeamWeekOffs(weekStart);
-  const newTeamRows: ScheduleRow[] = newTeamOffs.map(({ employee, dayOffIndex }) => {
+  const newTeamRows: ScheduleRow[] = newTeamOffs.map(({ employee, dayOffIndex, workingSaturday }) => {
     const days: (DayCell | null)[] = dateKeys.map((_, i) => {
       if (i === 5) {
-        // Cumartesi - sabit
+        // Cumartesi artık haftalık bir tercih (bkz. rotation.ts) — tercih
+        // etmeyen o hafta çalışmaz.
+        if (!workingSaturday) return { shift: "OFF", time: "—", isSaturday: true };
         return { shift: "NORMAL", time: "08:00 - 17:00", isSaturday: true };
       }
       if (i === dayOffIndex) {
