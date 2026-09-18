@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { requireManager } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 import { parseISODate } from "@/lib/week";
-import { NEW_TEAM_SATURDAY_OPT_IN_EPOCH } from "@/lib/rotation";
 
 export type AdminActionState = { error?: string; success?: boolean } | null;
 
@@ -67,17 +66,11 @@ export async function setNewTeamDayOff(
   }
 
   const weekStart = parseISODate(weekStartISO);
-  const saturdayOptInActive = weekStart.getTime() >= NEW_TEAM_SATURDAY_OPT_IN_EPOCH.getTime();
-  const workingSaturday = saturdayOptInActive && formData.get("workingSaturday") === "on";
+  const workingSaturday = true;
 
-  let dayOffIndex: number;
-  if (workingSaturday) {
-    dayOffIndex = 0; // Cumartesi çalışan otomatik Pazartesi izinli.
-  } else {
-    dayOffIndex = Number(formData.get("dayOffIndex"));
-    if (Number.isNaN(dayOffIndex) || dayOffIndex < 0 || dayOffIndex > 4) {
-      return { error: "Geçersiz veri." };
-    }
+  const dayOffIndex = Number(formData.get("dayOffIndex"));
+  if (Number.isNaN(dayOffIndex) || dayOffIndex < 0 || dayOffIndex > 4) {
+    return { error: "Geçersiz veri." };
   }
 
   await prisma.newTeamWeekOff.upsert({

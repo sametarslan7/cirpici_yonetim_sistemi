@@ -1,7 +1,7 @@
 import { requireManager } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getUpcomingWeekStart, formatISODate, formatTRDate, addDays } from "@/lib/week";
-import { getNewTeamWeekOffs, NEW_TEAM_SATURDAY_OPT_IN_EPOCH } from "@/lib/rotation";
+import { getNewTeamWeekOffs } from "@/lib/rotation";
 import ApprovalCard from "@/components/ApprovalCard";
 import NewTeamOffEditor from "@/components/NewTeamOffEditor";
 import Link from "next/link";
@@ -81,9 +81,7 @@ export default async function AdminPage() {
             id: o.employee.id,
             name: o.employee.name,
             dayOffIndex: o.dayOffIndex,
-            workingSaturday: o.workingSaturday,
           }))}
-          saturdayOptInActive={weekStart.getTime() >= NEW_TEAM_SATURDAY_OPT_IN_EPOCH.getTime()}
         />
       </section>
     </div>

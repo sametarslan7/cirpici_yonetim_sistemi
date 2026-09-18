@@ -9,7 +9,7 @@ import {
   formatTRDate,
   WEEKDAY_NAMES_TR,
 } from "@/lib/week";
-import { suggestNewTeamDayOffIndex, NEW_TEAM_SATURDAY_OPT_IN_EPOCH } from "@/lib/rotation";
+import { suggestNewTeamDayOffIndex } from "@/lib/rotation";
 import { NEW_TEAM_SHIFT, NEW_TEAM_SATURDAY_SHIFT } from "@/lib/constants";
 import NewTeamDayOffForm from "@/components/NewTeamDayOffForm";
 import WeekTabs from "@/components/WeekTabs";
@@ -34,11 +34,8 @@ export default async function YeniEkipTalepPage({
     where: { employeeId_weekStart: { employeeId: session.employeeId, weekStart } },
   });
 
-  const saturdayOptInActive = weekStart.getTime() >= NEW_TEAM_SATURDAY_OPT_IN_EPOCH.getTime();
-  const initialWorkingSaturday = saturdayOptInActive ? (override?.workingSaturday ?? false) : false;
-  const initialDayOffIndex = initialWorkingSaturday
-    ? 0
-    : override?.dayOffIndex ?? suggestNewTeamDayOffIndex(weekStart, employee?.rotationOrder ?? 1);
+  const initialDayOffIndex =
+    override?.dayOffIndex ?? suggestNewTeamDayOffIndex(weekStart, employee?.rotationOrder ?? 1);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
@@ -46,10 +43,9 @@ export default async function YeniEkipTalepPage({
         <h1 className="text-xl font-semibold text-slate-900">Haftalık İzin Günüm</h1>
         <p className="mt-1 text-sm text-slate-500">
           Normalde hafta içi (Pazartesi-Cuma) {NEW_TEAM_SHIFT.time} çalışır, hafta içinden bir gün
-          izinli olursunuz. Cumartesi ({NEW_TEAM_SATURDAY_SHIFT.time}) artık haftalık bir tercih:
-          çalışmak isterseniz izin gününüz otomatik Pazartesi olur.{" "}
-          {formatTRDate(weekStart)} - {formatTRDate(weekDates[5])} haftası için tercihinizi
-          aşağıdan seçip kaydedin. Bu kayıt onay gerektirmez, hemen geçerli olur.
+          izinli olursunuz. Cumartesi ({NEW_TEAM_SATURDAY_SHIFT.time}) sabit çalışılır.{" "}
+          {formatTRDate(weekStart)} - {formatTRDate(weekDates[5])} haftası için izinli olmak
+          istediğiniz günü aşağıdan seçip kaydedin. Bu kayıt onay gerektirmez, hemen geçerli olur.
         </p>
       </div>
 
@@ -69,9 +65,7 @@ export default async function YeniEkipTalepPage({
             dateLabel: formatTRDate(d),
           }))}
           initialDayOffIndex={initialDayOffIndex}
-          isOverridden={Boolean(override) && !initialWorkingSaturday}
-          saturdayOptInActive={saturdayOptInActive}
-          initialWorkingSaturday={initialWorkingSaturday}
+          isOverridden={Boolean(override)}
         />
       </div>
     </div>

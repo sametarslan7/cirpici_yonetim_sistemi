@@ -3,10 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireVeteran, requireNewTeam, requireFlexibleAntrenor, requireSaglikci } from "@/lib/session";
 import { isRequestableWeekStart, parseISODate, addDays, WEEKDAY_NAMES_TR } from "@/lib/week";
-import {
-  getNewTeamWeekOffs,
-  NEW_TEAM_SATURDAY_OPT_IN_EPOCH,
-} from "@/lib/rotation";
+import { getNewTeamWeekOffs } from "@/lib/rotation";
 import { revalidatePath } from "next/cache";
 import type { ShiftType } from "@prisma/client";
 
@@ -154,15 +151,6 @@ export async function submitWeeklyRequest(
  * `setNewTeamDayOff` ile aynı kayda yazar); Mahsum hoca dilerse admin
  * panelinden yine değiştirebilir.
  *
- * NEW_TEAM_SATURDAY_OPT_IN_EPOCH'tan itibaren Cumartesi ayrıca haftalık,
- * bağımsız/sınırsız bir tercihtir (aynı hafta birden fazla kişi Cumartesi
- * çalışmayı seçebilir — kontenjan yok). Cumartesi çalışmayı seçen kişi
- * için izin günü artık kendi seçimi değil, sistem tarafından otomatik
- * olarak Pazartesi'ye atanır (kronolojik olarak: önceki hafta sonu normal
- * izin -> bu haftanın Pazartesi'si izin -> Salı-Cumartesi 5 gün çalışma ->
- * Pazar normal izin). Bu yüzden Cumartesi'yi işaretleyenler, forma günün
- * kendisini otomatik Pazartesi olarak gösteren, birbirini engellemeyen bu
- * kişiler arasında bir çakışma kontrolüne tabi değildir.
  */
 export async function submitNewTeamDayOff(
   _prevState: RequestActionState,
@@ -177,31 +165,24 @@ export async function submitNewTeamDayOff(
     };
   }
   const weekStart = parseISODate(submittedWeekStart);
-  const saturdayOptInActive = weekStart.getTime() >= NEW_TEAM_SATURDAY_OPT_IN_EPOCH.getTime();
-  const workingSaturday = saturdayOptInActive && formData.get("workingSaturday") === "on";
+  const workingSaturday = true;
 
-  let dayOffIndex: number;
-  if (workingSaturday) {
-    dayOffIndex = 0; // Pazartesi — otomatik, kişi seçemez.
-  } else {
-    dayOffIndex = Number(formData.get("dayOffIndex"));
-    if (!Number.isInteger(dayOffIndex) || dayOffIndex < 0 || dayOffIndex > 4) {
-      return { error: "Lütfen izinli olmak istediğiniz günü seçin." };
-    }
+  const dayOffIndex = Number(formData.get("dayOffIndex"));
+  if (!Number.isInteger(dayOffIndex) || dayOffIndex < 0 || dayOffIndex > 4) {
+    return { error: "Lütfen izinli olmak istediğiniz günü seçin." };
+  }
 
-    // Aynı hafta içinde iki yeni ekip fizyoterapisti aynı güne izin
-    // alamaz (o gün kimse kapatmasın diye). Diğerlerinin o haftaki
-    // (öneri ya da kayıtlı) izin günüyle çakışıyorsa reddet. Cumartesi
-    // çalışıp otomatik Pazartesi izinli olanlar bu kontrolün dışındadır.
-    const others = (await getNewTeamWeekOffs(weekStart)).filter(
-      (o) => o.employee.id !== session.employeeId && !o.workingSaturday
-    );
-    const conflict = others.find((o) => o.dayOffIndex === dayOffIndex);
-    if (conflict) {
-      return {
-        error: `Bu gün zaten ${conflict.employee.name} için izinli görünüyor. Lütfen başka bir gün seçin.`,
-      };
-    }
+  // Aynı hafta içinde iki yeni ekip fizyoterapisti aynı güne izin
+  // alamaz (o gün kimse kapatmasın diye). Diğerlerinin o haftaki
+  // (öneri ya da kayıtlı) izin günüyle çakışıyorsa reddet.
+  const others = (await getNewTeamWeekOffs(weekStart)).filter(
+    (o) => o.employee.id !== session.employeeId
+  );
+  const conflict = others.find((o) => o.dayOffIndex === dayOffIndex);
+  if (conflict) {
+    return {
+      error: `Bu gün zaten ${conflict.employee.name} için izinli görünüyor. Lütfen başka bir gün seçin.`,
+    };
   }
 
   await prisma.newTeamWeekOff.upsert({
