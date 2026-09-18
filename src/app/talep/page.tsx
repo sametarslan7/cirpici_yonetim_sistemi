@@ -9,10 +9,7 @@ import {
   formatTRDate,
   WEEKDAY_NAMES_TR,
 } from "@/lib/week";
-import {
-  getSaturdayTakenBy,
-  getMondayCompOffEmployeeId,
-} from "@/lib/rotation";
+import { getSaturdayTakenBy } from "@/lib/rotation";
 import { getLateConflictMap } from "@/lib/schedule";
 import RequestForm from "@/components/RequestForm";
 import StatusBanner from "@/components/StatusBanner";
@@ -39,21 +36,20 @@ export default async function TalepPage({
     include: { days: true },
   });
 
-  const [takenBy, lateConflicts, mondayCompOffEmployeeId] = await Promise.all([
+  const [takenBy, lateConflicts] = await Promise.all([
     getSaturdayTakenBy(weekStart, "VETERAN"),
     getLateConflictMap(weekStart, session.employeeId, "VETERAN"),
-    getMondayCompOffEmployeeId(weekStart),
   ]);
 
-  const mondayCompOffLocked = mondayCompOffEmployeeId === session.employeeId;
-
-  const initialShifts: ShiftType[] = weekDates.slice(0, 5).map((d, i) => {
-    if (i === 0 && mondayCompOffLocked) return "OFF";
+  const initialShifts: ShiftType[] = weekDates.slice(0, 5).map((d) => {
     const entry = existing?.days.find(
       (e) => !e.isSaturday && formatISODate(e.date) === formatISODate(d)
     );
     return entry?.shift ?? "NORMAL";
   });
+
+  const existingDayOffIndex = initialShifts.findIndex((s) => s === "OFF");
+  const initialDayOffIndex = existingDayOffIndex === -1 ? 0 : existingDayOffIndex;
 
   const saturdayLockedByOther =
     takenBy && takenBy.employeeId !== session.employeeId ? takenBy.employee.name : null;
@@ -89,10 +85,10 @@ export default async function TalepPage({
         }))}
         initialShifts={initialShifts}
         initialWorkingSaturday={initialWorkingSaturday}
+        initialDayOffIndex={initialDayOffIndex}
         saturdayLockedByOther={saturdayLockedByOther}
         lateConflicts={lateConflicts}
         locked={existing?.status === "APPROVED"}
-        mondayCompOffLocked={mondayCompOffLocked}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { addDays, formatISODate } from "@/lib/week";
+import { formatISODate } from "@/lib/week";
 import type { Role } from "@prisma/client";
 
 /**
@@ -22,28 +22,11 @@ export async function getSaturdayTakenBy(weekStart: Date, role: Role) {
   return existing;
 }
 
-/**
- * Cumartesi mesaisinin telafisi (sadece eski ekip için): bir önceki hafta
- * Cumartesi'yi ONAYLANMIŞ olarak çalışan kişi varsa, o kişinin id'sini
- * döner. Bu kişi için, bir sonraki haftanın Pazartesi günü otomatik ve
- * zorunlu olarak izinlidir — kendisi o haftanın Pazartesi'sini elle seçmez,
- * sistem belirler. Cumartesi çalıştığı haftanın kendi içinde (Pzt-Cum) izin
- * hakkı yoktur; o hafta tam çalışır. Antrenör ekibi bu telafiyi kullanmaz —
- * onlar Cumartesi çalıştıkları haftanın içinde kendi seçtikleri bir günü
- * izin kullanır (bkz. submitAntrenorWeeklyRequest).
- */
-export async function getMondayCompOffEmployeeId(weekStart: Date): Promise<string | null> {
-  const previousWeekStart = addDays(weekStart, -7);
-  const lastSaturdayWork = await prisma.weeklyRequest.findFirst({
-    where: {
-      weekStart: previousWeekStart,
-      workingSaturday: true,
-      status: "APPROVED",
-      employee: { role: "VETERAN" },
-    },
-  });
-  return lastSaturdayWork?.employeeId ?? null;
-}
+// NOT: Eski ekip için "bir sonraki haftanın Pazartesi'si otomatik telafi
+// izni" mekanizması (getMondayCompOffEmployeeId) 2026-09-18'de kaldırıldı.
+// Artık antrenör/sağlıkçı/yeni ekip ile aynı mantık: Cumartesi çalışmayı
+// seçen kişi AYNI hafta içinden bir gün izinli olur (varsayılan Pazartesi,
+// kendisi değiştirebilir) — bkz. submitWeeklyRequest (requests.ts).
 
 /**
  * Yeni ekibin o hafta hangi gün izinli olacağına dair varsayılan (rotasyonlu)

@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { requireVeteran, requireNewTeam, requireFlexibleAntrenor, requireSaglikci } from "@/lib/session";
 import { isRequestableWeekStart, parseISODate, addDays, WEEKDAY_NAMES_TR } from "@/lib/week";
 import {
-  getMondayCompOffEmployeeId,
   getNewTeamWeekOffs,
   NEW_TEAM_SATURDAY_OPT_IN_EPOCH,
 } from "@/lib/rotation";
@@ -56,31 +55,21 @@ export async function submitWeeklyRequest(
     shifts.push(raw as ShiftType);
   }
 
-  // --- Pazartesi izni: sadece geçen hafta Cumartesi çalışan kişi için,
-  // otomatik ve zorunlu (kendisi seçemez, sistem belirler) ---
-  const mondayCompOffEmployeeId = await getMondayCompOffEmployeeId(weekStart);
-  const isMondayCompOff = mondayCompOffEmployeeId === session.employeeId;
+  // --- İzin günü: Cumartesi çalışmayı seçen kişi, aynı hafta içinden bir
+  // gün (varsayılan Pazartesi, formda değiştirilebilir) izinli olur.
+  // Cumartesi çalışmayanın izin hakkı yoktur, hafta içi 5 gün de çalışır. ---
   const offCount = shifts.filter((s) => s === "OFF").length;
 
-  if (isMondayCompOff) {
-    if (shifts[0] !== "OFF" || offCount !== 1) {
+  if (workingSaturday) {
+    if (offCount !== 1) {
       return {
-        error:
-          "Geçen hafta Cumartesi çalıştığınız için bu haftanın Pazartesi günü otomatik izinlidir; bu alan değiştirilemez. Lütfen sayfayı yenileyip tekrar deneyin.",
-      };
-    }
-    // Geçen hafta Cumartesi çalışan kişi, bu hafta tekrar Cumartesi çalışamaz;
-    // sıra diğer 4 arkadaşına geçmelidir.
-    if (workingSaturday) {
-      return {
-        error:
-          "Geçen hafta Cumartesi çalıştığınız için bu hafta Cumartesi çalışamazsınız; sıranın diğer arkadaşlarınıza geçmesi gerekiyor.",
+        error: "Cumartesi çalışacaksanız hafta içinden bir gün izinli olarak işaretlemelisiniz.",
       };
     }
   } else if (offCount > 0) {
     return {
       error:
-        "İzin günü elle seçilemez. İzin, sadece geçen hafta Cumartesi çalışan kişi için bir sonraki haftanın Pazartesi günü sistem tarafından otomatik tanımlanır.",
+        "İzin günü sadece Cumartesi çalışmayı seçtiğinizde belirlenebilir.",
     };
   }
 
