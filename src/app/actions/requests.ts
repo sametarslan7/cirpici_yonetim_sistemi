@@ -76,24 +76,8 @@ export async function submitWeeklyRequest(
     };
   }
 
-  // --- Cumartesi çakışma kontrolü (sadece eski ekip kendi arasında) ---
-  if (workingSaturday) {
-    const otherSaturday = await prisma.weeklyRequest.findFirst({
-      where: {
-        weekStart,
-        workingSaturday: true,
-        status: { in: ["PENDING", "APPROVED"] },
-        employeeId: { not: session.employeeId },
-        employee: { role: "VETERAN" },
-      },
-      include: { employee: true },
-    });
-    if (otherSaturday) {
-      return {
-        error: `Bu hafta Cumartesi vardiyası zaten ${otherSaturday.employee.name} tarafından talep edildi/onaylandı.`,
-      };
-    }
-  }
+  // Not: Cumartesi'de eski ekip içinde tek kişilik bir kontenjan yok — herkes
+  // birbirinden bağımsız olarak kendi haftasında bu seçeneği kullanabilir.
 
   // --- 11:00-20:00 (Geç Mesai) çakışma kontrolü: günde max 1 kişi ---
   for (let i = 0; i < 5; i++) {
@@ -289,23 +273,9 @@ export async function submitAntrenorWeeklyRequest(
       };
     }
     offDayIndex = parsed;
-
-    // --- Cumartesi çakışma kontrolü (antrenörler kendi arasında, günde max 1) ---
-    const otherSaturday = await prisma.weeklyRequest.findFirst({
-      where: {
-        weekStart,
-        workingSaturday: true,
-        status: { in: ["PENDING", "APPROVED"] },
-        employeeId: { not: session.employeeId },
-        employee: { role: "ANTRENOR" },
-      },
-      include: { employee: true },
-    });
-    if (otherSaturday) {
-      return {
-        error: `Bu hafta Cumartesi vardiyası zaten ${otherSaturday.employee.name} tarafından talep edildi/onaylandı.`,
-      };
-    }
+    // Not: Cumartesi'de esnek antrenörler arasında tek kişilik bir kontenjan
+    // yok — herkes birbirinden bağımsız olarak kendi haftasında bu seçeneği
+    // kullanabilir.
   }
 
   const shifts: ShiftType[] = [];

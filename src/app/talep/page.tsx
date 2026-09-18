@@ -9,7 +9,6 @@ import {
   formatTRDate,
   WEEKDAY_NAMES_TR,
 } from "@/lib/week";
-import { getSaturdayTakenBy } from "@/lib/rotation";
 import { getLateConflictMap } from "@/lib/schedule";
 import RequestForm from "@/components/RequestForm";
 import StatusBanner from "@/components/StatusBanner";
@@ -36,10 +35,7 @@ export default async function TalepPage({
     include: { days: true },
   });
 
-  const [takenBy, lateConflicts] = await Promise.all([
-    getSaturdayTakenBy(weekStart, "VETERAN"),
-    getLateConflictMap(weekStart, session.employeeId, "VETERAN"),
-  ]);
+  const lateConflicts = await getLateConflictMap(weekStart, session.employeeId, "VETERAN");
 
   const initialShifts: ShiftType[] = weekDates.slice(0, 5).map((d) => {
     const entry = existing?.days.find(
@@ -50,9 +46,6 @@ export default async function TalepPage({
 
   const existingDayOffIndex = initialShifts.findIndex((s) => s === "OFF");
   const initialDayOffIndex = existingDayOffIndex === -1 ? 0 : existingDayOffIndex;
-
-  const saturdayLockedByOther =
-    takenBy && takenBy.employeeId !== session.employeeId ? takenBy.employee.name : null;
 
   const initialWorkingSaturday = existing?.workingSaturday ?? false;
 
@@ -87,7 +80,6 @@ export default async function TalepPage({
         initialShifts={initialShifts}
         initialWorkingSaturday={initialWorkingSaturday}
         initialDayOffIndex={initialDayOffIndex}
-        saturdayLockedByOther={saturdayLockedByOther}
         lateConflicts={lateConflicts}
         locked={existing?.status === "PENDING" || existing?.status === "APPROVED"}
       />

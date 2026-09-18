@@ -15,7 +15,6 @@ export default function AntrenorRequestForm({
   initialShifts,
   initialWorkingSaturday,
   initialOffDayIndex,
-  saturdayLockedByOther,
   lateConflicts,
   locked,
 }: {
@@ -24,7 +23,6 @@ export default function AntrenorRequestForm({
   initialShifts: ShiftType[];
   initialWorkingSaturday: boolean;
   initialOffDayIndex: number | null;
-  saturdayLockedByOther: string | null;
   lateConflicts: (string | null)[];
   locked: boolean;
 }) {
@@ -130,7 +128,7 @@ export default function AntrenorRequestForm({
             type="checkbox"
             name="workingSaturday"
             checked={workingSaturday}
-            disabled={locked || (!!saturdayLockedByOther && !workingSaturday)}
+            disabled={locked}
             onChange={(e) => setWorkingSaturday(e.target.checked)}
             className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
           />
@@ -138,18 +136,11 @@ export default function AntrenorRequestForm({
             <span className="font-medium text-slate-800">
               Bu hafta Cumartesi (08:00-17:00) çalışacağım
             </span>
-            {saturdayLockedByOther && !workingSaturday ? (
-              <p className="mt-1 text-xs text-rose-600">
-                Bu hafta Cumartesi vardiyası {saturdayLockedByOther} tarafından seçildi.
-              </p>
-            ) : (
-              <p className="mt-1 text-xs text-slate-400">
-                Cumartesi çalışırsanız, karşılığında bu hafta içinden bir gün izin
-                kullanırsınız. Eren ile birlikte Cumartesi çalışan toplam antrenör
-                sayısı 2 olacak şekilde, sizin gibi esnek antrenörlerden bir haftada
-                en fazla 1 kişi katılabilir.
-              </p>
-            )}
+            <p className="mt-1 text-xs text-slate-400">
+              Cumartesi çalışırsanız, karşılığında bu hafta içinden bir gün izin
+              kullanırsınız. Esnek antrenörlerden herkes, birbirinden bağımsız
+              olarak kendi haftasında bu seçeneği kullanabilir.
+            </p>
           </span>
         </label>
 

@@ -15,7 +15,6 @@ export default function RequestForm({
   initialShifts,
   initialWorkingSaturday,
   initialDayOffIndex,
-  saturdayLockedByOther,
   lateConflicts,
   locked,
 }: {
@@ -26,7 +25,6 @@ export default function RequestForm({
   /** Cumartesi çalışırken izinli sayılacak gün (0=Pazartesi..4=Cuma),
    * varsayılan/kayıtlı değer — kişi butonlardan değiştirebilir. */
   initialDayOffIndex: number;
-  saturdayLockedByOther: string | null;
   lateConflicts: (string | null)[];
   locked: boolean;
 }) {
@@ -138,7 +136,7 @@ export default function RequestForm({
             type="checkbox"
             name="workingSaturday"
             checked={workingSaturday}
-            disabled={locked || !!saturdayLockedByOther}
+            disabled={locked}
             onChange={(e) => setWorkingSaturday(e.target.checked)}
             className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
           />
@@ -146,11 +144,6 @@ export default function RequestForm({
             <span className="font-medium text-slate-800">
               Bu hafta Cumartesi (08:00-17:00) çalışacağım
             </span>
-            {saturdayLockedByOther && (
-              <p className="mt-1 text-xs text-rose-600">
-                Bu hafta Cumartesi vardiyası {saturdayLockedByOther} tarafından seçildi.
-              </p>
-            )}
             <p className="mt-1 text-xs text-slate-400">
               İşaretlerseniz hafta içinden bir gün (varsayılan Pazartesi) izinli sayılırsınız;
               tablodaki &quot;İzinli yap&quot; butonuyla başka bir güne değiştirebilirsiniz.

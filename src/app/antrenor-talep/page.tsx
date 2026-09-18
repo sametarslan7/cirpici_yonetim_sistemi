@@ -9,7 +9,6 @@ import {
   formatTRDate,
   WEEKDAY_NAMES_TR,
 } from "@/lib/week";
-import { getSaturdayTakenBy } from "@/lib/rotation";
 import { getLateConflictMap } from "@/lib/schedule";
 import AntrenorRequestForm from "@/components/AntrenorRequestForm";
 import StatusBanner from "@/components/StatusBanner";
@@ -36,12 +35,7 @@ export default async function AntrenorTalepPage({
     include: { days: true },
   });
 
-  const [takenBy, lateConflicts] = await Promise.all([
-    getSaturdayTakenBy(weekStart, "ANTRENOR"),
-    getLateConflictMap(weekStart, session.employeeId, "ANTRENOR"),
-  ]);
-  const saturdayLockedByOther =
-    takenBy && takenBy.employeeId !== session.employeeId ? takenBy.employee.name : null;
+  const lateConflicts = await getLateConflictMap(weekStart, session.employeeId, "ANTRENOR");
 
   const initialWorkingSaturday = existing?.workingSaturday ?? false;
   const offEntry = existing?.days.find((d) => !d.isSaturday && d.shift === "OFF");
@@ -90,7 +84,6 @@ export default async function AntrenorTalepPage({
         initialShifts={initialShifts}
         initialWorkingSaturday={initialWorkingSaturday}
         initialOffDayIndex={initialOffDayIndex}
-        saturdayLockedByOther={saturdayLockedByOther}
         lateConflicts={lateConflicts}
         locked={existing?.status === "PENDING" || existing?.status === "APPROVED"}
       />

@@ -14,34 +14,12 @@ export async function approveRequest(
 ): Promise<AdminActionState> {
   await requireManager();
   const id = String(formData.get("id") ?? "");
-  const request = await prisma.weeklyRequest.findUnique({
-    where: { id },
-    include: { employee: true },
-  });
+  const request = await prisma.weeklyRequest.findUnique({ where: { id } });
   if (!request) return { error: "Talep bulunamadı." };
 
-  // Güvenlik amaçlı son bir kez daha çakışma kontrolü (aynı anda iki talep
-  // onaylanmaya çalışılırsa diye). Eski ekip ve antrenör ekibinin Cumartesi
-  // kontenjanları birbirinden bağımsız olduğu için role ile sınırlanır.
-  // Sağlık ekibinde Cumartesi için tek kişilik bir kontenjan yok — herkes
-  // bağımsız olarak onaylanabilir, bu yüzden bu kontrole dahil değil.
-  if (request.workingSaturday && request.employee.role !== "SAGLIKCI") {
-    const conflict = await prisma.weeklyRequest.findFirst({
-      where: {
-        weekStart: request.weekStart,
-        workingSaturday: true,
-        status: "APPROVED",
-        id: { not: request.id },
-        employee: { role: request.employee.role },
-      },
-      include: { employee: true },
-    });
-    if (conflict) {
-      return {
-        error: `Bu hafta Cumartesi vardiyası zaten ${conflict.employee.name} için onaylanmış. Önce onu düzeltin.`,
-      };
-    }
-  }
+  // Not: Hiçbir ekipte Cumartesi için artık tek kişilik bir kontenjan yok —
+  // herkes birbirinden bağımsız olarak kendi haftasında bu seçeneği
+  // kullanabilir, dolayısıyla burada çakışma kontrolüne gerek yok.
 
   await prisma.weeklyRequest.update({
     where: { id },

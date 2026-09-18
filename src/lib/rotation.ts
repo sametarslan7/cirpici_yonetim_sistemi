@@ -1,26 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { formatISODate } from "@/lib/week";
-import type { Role } from "@prisma/client";
-
-/**
- * O hafta zaten Cumartesi'yi Mahsum hocanın onayladığı/bekleyen biri varsa
- * onun id'sini döndürür (varsa formda onu göstermek/kilitlemek için).
- * Eski ekip ve antrenör ekibinin Cumartesi kontenjanları birbirinden
- * bağımsızdır, bu yüzden role zorunlu parametredir.
- */
-export async function getSaturdayTakenBy(weekStart: Date, role: Role) {
-  const existing = await prisma.weeklyRequest.findFirst({
-    where: {
-      weekStart,
-      workingSaturday: true,
-      status: { in: ["PENDING", "APPROVED"] },
-      employee: { role },
-    },
-    include: { employee: true },
-  });
-  return existing;
-}
 
 // NOT: Eski ekip için "bir sonraki haftanın Pazartesi'si otomatik telafi
 // izni" mekanizması (getMondayCompOffEmployeeId) 2026-09-18'de kaldırıldı.
