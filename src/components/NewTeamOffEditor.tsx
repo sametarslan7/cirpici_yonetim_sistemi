@@ -38,6 +38,7 @@ function Row({
 }) {
   const [state, action, pending] = useActionState(setNewTeamDayOff, null);
   const [workingSaturday, setWorkingSaturday] = useState(employee.workingSaturday);
+  const [dayOffIndex, setDayOffIndex] = useState(employee.dayOffIndex);
 
   return (
     <form
@@ -46,6 +47,7 @@ function Row({
     >
       <input type="hidden" name="employeeId" value={employee.id} />
       <input type="hidden" name="weekStart" value={weekStartISO} />
+      <input type="hidden" name="dayOffIndex" value={dayOffIndex} />
       <span className="text-sm font-medium text-slate-800">{employee.name}</span>
       <div className="flex flex-wrap items-center gap-2">
         {saturdayOptInActive && (
@@ -60,23 +62,27 @@ function Row({
             Cumartesi çalışıyor
           </label>
         )}
-        {workingSaturday ? (
-          <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-500">
-            Pazartesi izinli (otomatik)
-          </span>
-        ) : (
-          <select
-            name="dayOffIndex"
-            defaultValue={employee.dayOffIndex}
-            className="rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-teal-500 focus:outline-none"
-          >
-            {WEEKDAY_NAMES_TR.slice(0, 5).map((name, i) => (
-              <option key={i} value={i}>
-                {name} izinli
-              </option>
-            ))}
-          </select>
-        )}
+        <div className="flex flex-wrap gap-1">
+          {WEEKDAY_NAMES_TR.slice(0, 5).map((name, i) => {
+            const selected = i === dayOffIndex;
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setDayOffIndex(i)}
+                aria-pressed={selected}
+                className={
+                  "rounded-md border px-2 py-1 text-xs transition " +
+                  (selected
+                    ? "border-teal-600 bg-teal-600 text-white"
+                    : "border-slate-300 bg-white text-slate-600 hover:border-teal-400")
+                }
+              >
+                {name}
+              </button>
+            );
+          })}
+        </div>
         <button
           type="submit"
           disabled={pending}

@@ -99,13 +99,15 @@ model NewTeamWeekOff {
   employeeId String
   employee   Employee @relation(fields: [employeeId], references: [id])
   weekStart  DateTime
-  // 0=Pazartesi ... 4=Cuma. workingSaturday=true olduğunda bu her zaman 0'dır
-  // (Pazartesi otomatik izin, kişi seçemez) — bkz. rotation.ts.
+  // 0=Pazartesi ... 4=Cuma. workingSaturday=true olduğunda varsayılan 0'dır
+  // (Pazartesi otomatik izin) ama kişi/admin başka bir günü seçebilir —
+  // bkz. rotation.ts.
   dayOffIndex Int
   // O hafta Cumartesi çalışıp çalışmayacağı (bkz.
   // NEW_TEAM_SATURDAY_OPT_IN_EPOCH, rotation.ts). true ise izin günü
-  // otomatik olarak Pazartesi'dir. Bu tarihten önceki haftalar için
-  // anlamsızdır (o haftalarda Cumartesi herkes için sabit çalışılırdı).
+  // varsayılan olarak Pazartesi'dir, dayOffIndex ile değiştirilebilir. Bu
+  // tarihten önceki haftalar için anlamsızdır (o haftalarda Cumartesi
+  // herkes için sabit çalışılırdı).
   workingSaturday Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
