@@ -144,13 +144,14 @@ export default async function PanelPage({
           <WeekTabs basePath="/panel" weeks={weekTabs} activeISO={weekStartISO} />
           {existing && <StatusBanner status={existing.status} reason={existing.rejectionReason} />}
           <SaglikciRequestForm
+            key={weekStartISO}
             weekStartISO={weekStartISO}
             weekDates={weekDayInfo}
             initialShifts={initialShifts}
             initialWorkingSaturday={initialWorkingSaturday}
             initialOffDayIndex={initialOffDayIndex}
             lateConflicts={lateConflicts}
-            locked={existing?.status === "APPROVED"}
+            locked={existing?.status === "PENDING" || existing?.status === "APPROVED"}
           />
         </div>
       )}

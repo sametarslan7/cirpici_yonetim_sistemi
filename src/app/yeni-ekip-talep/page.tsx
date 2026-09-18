@@ -61,6 +61,7 @@ export default async function YeniEkipTalepPage({
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <NewTeamDayOffForm
+          key={formatISODate(weekStart)}
           weekStartISO={formatISODate(weekStart)}
           weekDates={weekDates.slice(0, 5).map((d, i) => ({
             index: i,

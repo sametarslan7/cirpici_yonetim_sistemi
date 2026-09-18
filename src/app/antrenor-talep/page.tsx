@@ -80,6 +80,7 @@ export default async function AntrenorTalepPage({
       {existing && <StatusBanner status={existing.status} reason={existing.rejectionReason} />}
 
       <AntrenorRequestForm
+        key={formatISODate(weekStart)}
         weekStartISO={formatISODate(weekStart)}
         weekDates={weekDates.slice(0, 5).map((d, i) => ({
           index: i,
@@ -91,7 +92,7 @@ export default async function AntrenorTalepPage({
         initialOffDayIndex={initialOffDayIndex}
         saturdayLockedByOther={saturdayLockedByOther}
         lateConflicts={lateConflicts}
-        locked={existing?.status === "APPROVED"}
+        locked={existing?.status === "PENDING" || existing?.status === "APPROVED"}
       />
     </div>
   );

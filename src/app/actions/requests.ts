@@ -33,14 +33,17 @@ export async function submitWeeklyRequest(
   }
   const weekStart = parseISODate(submittedWeekStart);
 
-  // Zaten onaylanmış bir talep varsa, önce yönetici reddetmeden değiştirilemez.
+  // Onaya gönderilmiş (PENDING) ya da onaylanmış (APPROVED) bir talep,
+  // yönetici reddetmeden/onayı geri almadan değiştirilemez — kilitlidir.
   const existing = await prisma.weeklyRequest.findUnique({
     where: { employeeId_weekStart: { employeeId: session.employeeId, weekStart } },
   });
-  if (existing?.status === "APPROVED") {
+  if (existing?.status === "PENDING" || existing?.status === "APPROVED") {
     return {
       error:
-        "Bu haftanın talebi zaten onaylandı. Değişiklik yapmak için Mahsum hocadan onayı geri almasını isteyin.",
+        existing.status === "APPROVED"
+          ? "Bu haftanın talebi zaten onaylandı. Değişiklik yapmak için Mahsum hocadan onayı geri almasını isteyin."
+          : "Bu haftanın talebi onay bekliyor ve kilitli. Değişiklik yapmak için Mahsum hocadan reddetmesini isteyin.",
     };
   }
 
@@ -265,10 +268,12 @@ export async function submitAntrenorWeeklyRequest(
   const existing = await prisma.weeklyRequest.findUnique({
     where: { employeeId_weekStart: { employeeId: session.employeeId, weekStart } },
   });
-  if (existing?.status === "APPROVED") {
+  if (existing?.status === "PENDING" || existing?.status === "APPROVED") {
     return {
       error:
-        "Bu haftanın talebi zaten onaylandı. Değişiklik yapmak için Mahsum hocadan onayı geri almasını isteyin.",
+        existing.status === "APPROVED"
+          ? "Bu haftanın talebi zaten onaylandı. Değişiklik yapmak için Mahsum hocadan onayı geri almasını isteyin."
+          : "Bu haftanın talebi onay bekliyor ve kilitli. Değişiklik yapmak için Mahsum hocadan reddetmesini isteyin.",
     };
   }
 
@@ -428,10 +433,12 @@ export async function submitSaglikciWeeklyRequest(
   const existing = await prisma.weeklyRequest.findUnique({
     where: { employeeId_weekStart: { employeeId: session.employeeId, weekStart } },
   });
-  if (existing?.status === "APPROVED") {
+  if (existing?.status === "PENDING" || existing?.status === "APPROVED") {
     return {
       error:
-        "Bu haftanın talebi zaten onaylandı. Değişiklik yapmak için Mahsum hocadan onayı geri almasını isteyin.",
+        existing.status === "APPROVED"
+          ? "Bu haftanın talebi zaten onaylandı. Değişiklik yapmak için Mahsum hocadan onayı geri almasını isteyin."
+          : "Bu haftanın talebi onay bekliyor ve kilitli. Değişiklik yapmak için Mahsum hocadan reddetmesini isteyin.",
     };
   }
 
