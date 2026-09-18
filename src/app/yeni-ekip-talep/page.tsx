@@ -37,7 +37,7 @@ export default async function YeniEkipTalepPage({
   const saturdayOptInActive = weekStart.getTime() >= NEW_TEAM_SATURDAY_OPT_IN_EPOCH.getTime();
   const initialWorkingSaturday = saturdayOptInActive ? (override?.workingSaturday ?? false) : false;
   const initialDayOffIndex = initialWorkingSaturday
-    ? override?.dayOffIndex ?? 0
+    ? 0
     : override?.dayOffIndex ?? suggestNewTeamDayOffIndex(weekStart, employee?.rotationOrder ?? 1);
 
   return (
@@ -47,8 +47,7 @@ export default async function YeniEkipTalepPage({
         <p className="mt-1 text-sm text-slate-500">
           Normalde hafta içi (Pazartesi-Cuma) {NEW_TEAM_SHIFT.time} çalışır, hafta içinden bir gün
           izinli olursunuz. Cumartesi ({NEW_TEAM_SATURDAY_SHIFT.time}) artık haftalık bir tercih:
-          çalışmak isterseniz izin gününüz varsayılan olarak Pazartesi olur, dilerseniz başka bir
-          güne değiştirebilirsiniz.{" "}
+          çalışmak isterseniz izin gününüz otomatik Pazartesi olur.{" "}
           {formatTRDate(weekStart)} - {formatTRDate(weekDates[5])} haftası için tercihinizi
           aşağıdan seçip kaydedin. Bu kayıt onay gerektirmez, hemen geçerli olur.
         </p>

@@ -101,11 +101,9 @@ export async function getNewTeamWeekOffs(weekStart: Date) {
     return {
       employee: emp,
       workingSaturday,
-      // Cumartesi çalışan varsayılan olarak Pazartesi izinlidir, ama kişi
-      // isterse başka bir günü seçip değiştirebilir (bkz. requests.ts /
-      // admin.ts submitNewTeamDayOff / setNewTeamDayOff).
+      // Cumartesi çalışan otomatik Pazartesi izinlidir — bu gün seçilemez.
       dayOffIndex: workingSaturday
-        ? override?.dayOffIndex ?? 0
+        ? 0
         : override?.dayOffIndex ?? suggestNewTeamDayOffIndex(weekStart, emp.rotationOrder ?? 1),
       isOverridden: Boolean(override) && !workingSaturday,
     };

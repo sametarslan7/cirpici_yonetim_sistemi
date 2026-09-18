@@ -180,14 +180,13 @@ export async function submitWeeklyRequest(
  *
  * NEW_TEAM_SATURDAY_OPT_IN_EPOCH'tan itibaren Cumartesi ayrıca haftalık,
  * bağımsız/sınırsız bir tercihtir (aynı hafta birden fazla kişi Cumartesi
- * çalışmayı seçebilir — kontenjan yok). Cumartesi çalışmayı seçen kişinin
- * izin günü varsayılan olarak Pazartesi'ye atanır (kronolojik olarak:
- * önceki hafta sonu normal izin -> bu haftanın Pazartesi'si izin ->
- * Salı-Cumartesi 5 gün çalışma -> Pazar normal izin), ama kişi dilerse
- * hafta içinden başka bir günü işaretleyip değiştirebilir. Cumartesi
- * çalışanlar birbirini (veya Cumartesi çalışmayanları) engellemez; bu
- * grup için gün çakışma kontrolü uygulanmaz — kontenjansız tercih ile
- * tutarlı olsun diye.
+ * çalışmayı seçebilir — kontenjan yok). Cumartesi çalışmayı seçen kişi
+ * için izin günü artık kendi seçimi değil, sistem tarafından otomatik
+ * olarak Pazartesi'ye atanır (kronolojik olarak: önceki hafta sonu normal
+ * izin -> bu haftanın Pazartesi'si izin -> Salı-Cumartesi 5 gün çalışma ->
+ * Pazar normal izin). Bu yüzden Cumartesi'yi işaretleyenler, forma günün
+ * kendisini otomatik Pazartesi olarak gösteren, birbirini engellemeyen bu
+ * kişiler arasında bir çakışma kontrolüne tabi değildir.
  */
 export async function submitNewTeamDayOff(
   _prevState: RequestActionState,
@@ -205,20 +204,19 @@ export async function submitNewTeamDayOff(
   const saturdayOptInActive = weekStart.getTime() >= NEW_TEAM_SATURDAY_OPT_IN_EPOCH.getTime();
   const workingSaturday = saturdayOptInActive && formData.get("workingSaturday") === "on";
 
-  const rawDayOffIndex = Number(formData.get("dayOffIndex"));
-  const dayOffIndex = Number.isInteger(rawDayOffIndex) && rawDayOffIndex >= 0 && rawDayOffIndex <= 4
-    ? rawDayOffIndex
-    : 0; // Pazartesi — varsayılan (özellikle Cumartesi çalışanlar için).
-
-  if (!workingSaturday) {
-    if (!formData.get("dayOffIndex")) {
+  let dayOffIndex: number;
+  if (workingSaturday) {
+    dayOffIndex = 0; // Pazartesi — otomatik, kişi seçemez.
+  } else {
+    dayOffIndex = Number(formData.get("dayOffIndex"));
+    if (!Number.isInteger(dayOffIndex) || dayOffIndex < 0 || dayOffIndex > 4) {
       return { error: "Lütfen izinli olmak istediğiniz günü seçin." };
     }
 
     // Aynı hafta içinde iki yeni ekip fizyoterapisti aynı güne izin
     // alamaz (o gün kimse kapatmasın diye). Diğerlerinin o haftaki
     // (öneri ya da kayıtlı) izin günüyle çakışıyorsa reddet. Cumartesi
-    // çalışanlar bu kontrolün dışındadır.
+    // çalışıp otomatik Pazartesi izinli olanlar bu kontrolün dışındadır.
     const others = (await getNewTeamWeekOffs(weekStart)).filter(
       (o) => o.employee.id !== session.employeeId && !o.workingSaturday
     );

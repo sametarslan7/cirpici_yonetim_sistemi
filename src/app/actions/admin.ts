@@ -92,13 +92,14 @@ export async function setNewTeamDayOff(
   const saturdayOptInActive = weekStart.getTime() >= NEW_TEAM_SATURDAY_OPT_IN_EPOCH.getTime();
   const workingSaturday = saturdayOptInActive && formData.get("workingSaturday") === "on";
 
-  const rawDayOffIndex = Number(formData.get("dayOffIndex"));
-  const dayOffIndex = Number.isInteger(rawDayOffIndex) && rawDayOffIndex >= 0 && rawDayOffIndex <= 4
-    ? rawDayOffIndex
-    : 0; // Cumartesi çalışan varsayılan olarak Pazartesi izinli, değiştirilebilir.
-
-  if (!workingSaturday && !formData.get("dayOffIndex")) {
-    return { error: "Geçersiz veri." };
+  let dayOffIndex: number;
+  if (workingSaturday) {
+    dayOffIndex = 0; // Cumartesi çalışan otomatik Pazartesi izinli.
+  } else {
+    dayOffIndex = Number(formData.get("dayOffIndex"));
+    if (Number.isNaN(dayOffIndex) || dayOffIndex < 0 || dayOffIndex > 4) {
+      return { error: "Geçersiz veri." };
+    }
   }
 
   await prisma.newTeamWeekOff.upsert({
