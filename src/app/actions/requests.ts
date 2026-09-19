@@ -89,6 +89,7 @@ export async function submitWeeklyRequest(
         weeklyRequest: {
           employeeId: { not: session.employeeId },
           status: { in: ["PENDING", "APPROVED"] },
+          employee: { role: "VETERAN" },
         },
       },
       include: { weeklyRequest: { include: { employee: true } } },
