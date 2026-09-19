@@ -59,3 +59,32 @@ export function weekKey(weekStart: Date) {
 // kaldırıldı — antrenörler artık birbirinin seçimini beklemeden doğrudan talep
 // gönderebiliyor. Eren'in Pazartesi 11:00-20:00 boşluğu sadece bir bilgilendirme
 // notu olarak AntrenorRequestForm'da gösteriliyor, talebi engellemiyor.
+
+/**
+ * Eski ekipte hafta içi (Pzt-Cum) her gün en az 1 kişi 11:00-20:00 (Geç
+ * Mesai) çalışmalı — klinik akşam 20:00'a kadar açık kalabilsin diye.
+ * Talepler ekip üyeleri tarafından birbirinden bağımsız gönderildiği için
+ * bu kural yalnızca o haftanın SON talebini gönderen kişiye uygulanır:
+ * önce gönderenler kimseyi beklemeden serbestçe seçim yapabilir, ama
+ * hepsi gönderdiğinde hâlâ kapsanmayan bir gün kalmışsa son kişi o günü
+ * kapatmak zorunda kalır (bkz. [[submitWeeklyRequest]] / [[getLateConflictMap]]).
+ */
+export async function isLastVeteranToSubmit(
+  weekStart: Date,
+  excludeEmployeeId: string
+): Promise<boolean> {
+  const others = await prisma.employee.findMany({
+    where: { role: "VETERAN", active: true, id: { not: excludeEmployeeId } },
+    select: { id: true },
+  });
+  if (others.length === 0) return true;
+
+  const othersSubmitted = await prisma.weeklyRequest.count({
+    where: {
+      weekStart,
+      status: { in: ["PENDING", "APPROVED"] },
+      employeeId: { in: others.map((o) => o.id) },
+    },
+  });
+  return othersSubmitted === others.length;
+}

@@ -16,6 +16,7 @@ export default function RequestForm({
   initialWorkingSaturday,
   initialDayOffIndex,
   lateConflicts,
+  isLastToSubmit,
   locked,
 }: {
   weekStartISO: string;
@@ -26,6 +27,10 @@ export default function RequestForm({
    * varsayılan/kayıtlı değer — kişi butonlardan değiştirebilir. */
   initialDayOffIndex: number;
   lateConflicts: (string | null)[];
+  /** Ekipteki diğer aktif üyelerin hepsi bu hafta için talep gönderdiyse
+   * true — bu durumda hafta içi kapsanmayan (kimsenin 11:00-20:00
+   * seçmediği) günler varsa gönderim engellenir (bkz. submitWeeklyRequest). */
+  isLastToSubmit: boolean;
   locked: boolean;
 }) {
   const [state, formAction, pending] = useActionState(submitWeeklyRequest, null);
@@ -45,6 +50,19 @@ export default function RequestForm({
       return next;
     });
   }
+
+  // Ekipteki herkes bu hafta için talep gönderdiyse (isLastToSubmit), hâlâ
+  // kimsenin 11:00-20:00 seçmediği günler varsa gönderim engellenecek —
+  // bunu göndermeden önce burada gösteriyoruz.
+  const uncoveredDays = isLastToSubmit
+    ? weekDates
+        .filter((day) => {
+          const isDayOff = workingSaturday && day.index === dayOffIndex;
+          if (isDayOff) return !lateConflicts[day.index];
+          return shifts[day.index] !== "LATE" && !lateConflicts[day.index];
+        })
+        .map((day) => day.label)
+    : [];
 
   return (
     <form action={formAction} className="space-y-4">
@@ -151,6 +169,14 @@ export default function RequestForm({
           </span>
         </label>
       </div>
+
+      {uncoveredDays.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Hafta içi her gün en az 1 kişi 11:00-20:00 çalışmalı. Ekipte en son siz talep
+          gönderdiğiniz için şu gün(ler)de 11:00-20:00 seçmeniz gerekiyor:{" "}
+          <span className="font-medium">{uncoveredDays.join(", ")}</span>.
+        </div>
+      )}
 
       {state?.error && (
         <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

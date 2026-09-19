@@ -10,6 +10,7 @@ import {
   WEEKDAY_NAMES_TR,
 } from "@/lib/week";
 import { getLateConflictMap } from "@/lib/schedule";
+import { isLastVeteranToSubmit } from "@/lib/rotation";
 import RequestForm from "@/components/RequestForm";
 import StatusBanner from "@/components/StatusBanner";
 import WeekTabs from "@/components/WeekTabs";
@@ -36,6 +37,7 @@ export default async function TalepPage({
   });
 
   const lateConflicts = await getLateConflictMap(weekStart, session.employeeId, "VETERAN");
+  const isLastToSubmit = await isLastVeteranToSubmit(weekStart, session.employeeId);
 
   const initialShifts: ShiftType[] = weekDates.slice(0, 5).map((d) => {
     const entry = existing?.days.find(
@@ -81,6 +83,7 @@ export default async function TalepPage({
         initialWorkingSaturday={initialWorkingSaturday}
         initialDayOffIndex={initialDayOffIndex}
         lateConflicts={lateConflicts}
+        isLastToSubmit={isLastToSubmit}
         locked={existing?.status === "PENDING" || existing?.status === "APPROVED"}
       />
     </div>
