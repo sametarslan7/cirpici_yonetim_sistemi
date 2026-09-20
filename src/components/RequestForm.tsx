@@ -16,6 +16,7 @@ export default function RequestForm({
   initialWorkingSaturday,
   initialDayOffIndex,
   lateConflicts,
+  closingCovered,
   isLastToSubmit,
   locked,
 }: {
@@ -27,9 +28,13 @@ export default function RequestForm({
    * varsayılan/kayıtlı değer — kişi butonlardan değiştirebilir. */
   initialDayOffIndex: number;
   lateConflicts: (string | null)[];
+  /** Her gün için, ekipten (kendisi hariç) biri LATE ya da EXTRA seçtiği
+   * için kapanışın (20:00) zaten kapsanıp kapsanmadığı. */
+  closingCovered: boolean[];
   /** Ekipteki diğer aktif üyelerin hepsi bu hafta için talep gönderdiyse
-   * true — bu durumda hafta içi kapsanmayan (kimsenin 11:00-20:00
-   * seçmediği) günler varsa gönderim engellenir (bkz. submitWeeklyRequest). */
+   * true — bu durumda hafta içi kapsanmayan (kimsenin 20:00'a kadar LATE
+   * ya da EXTRA seçmediği) günler varsa gönderim engellenir (bkz.
+   * submitWeeklyRequest). */
   isLastToSubmit: boolean;
   locked: boolean;
 }) {
@@ -52,14 +57,15 @@ export default function RequestForm({
   }
 
   // Ekipteki herkes bu hafta için talep gönderdiyse (isLastToSubmit), hâlâ
-  // kimsenin 11:00-20:00 seçmediği günler varsa gönderim engellenecek —
-  // bunu göndermeden önce burada gösteriyoruz.
+  // kimsenin 20:00'a kadar (LATE ya da EXTRA) kalmadığı günler varsa
+  // gönderim engellenecek — bunu göndermeden önce burada gösteriyoruz.
   const uncoveredDays = isLastToSubmit
     ? weekDates
         .filter((day) => {
           const isDayOff = workingSaturday && day.index === dayOffIndex;
-          if (isDayOff) return !lateConflicts[day.index];
-          return shifts[day.index] !== "LATE" && !lateConflicts[day.index];
+          if (isDayOff) return !closingCovered[day.index];
+          const shift = shifts[day.index];
+          return shift !== "LATE" && shift !== "EXTRA" && !closingCovered[day.index];
         })
         .map((day) => day.label)
     : [];
@@ -172,8 +178,9 @@ export default function RequestForm({
 
       {uncoveredDays.length > 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Hafta içi her gün en az 1 kişi 11:00-20:00 çalışmalı. Ekipte en son siz talep
-          gönderdiğiniz için şu gün(ler)de 11:00-20:00 seçmeniz gerekiyor:{" "}
+          Hafta içi her gün en az 1 kişi 20:00&apos;a kadar (11:00-20:00 ya da 08:00-20:00) çalışmalı.
+          Ekipte en son siz talep gönderdiğiniz için şu gün(ler)de bu saatlerden birini seçmeniz
+          gerekiyor:{" "}
           <span className="font-medium">{uncoveredDays.join(", ")}</span>.
         </div>
       )}

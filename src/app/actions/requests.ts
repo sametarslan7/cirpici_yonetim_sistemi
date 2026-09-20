@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireVeteran, requireNewTeam, requireFlexibleAntrenor, requireSaglikci } from "@/lib/session";
 import { isRequestableWeekStart, parseISODate, addDays, WEEKDAY_NAMES_TR } from "@/lib/week";
 import { getNewTeamWeekOffs, isLastVeteranToSubmit } from "@/lib/rotation";
-import { getLateConflictMap } from "@/lib/schedule";
+import { getLateConflictMap, getClosingCoveredDays } from "@/lib/schedule";
 import { revalidatePath } from "next/cache";
 import type { ShiftType } from "@prisma/client";
 
@@ -101,18 +101,21 @@ export async function submitWeeklyRequest(
     }
   }
 
-  // --- Hafta içi kapsama: her gün en az 1 kişi 11:00-20:00'a kadar
-  // kalmalı. Talepler bağımsız gönderildiği için bu kontrol sadece o
-  // haftanın SON talebini gönderen kişiye uygulanır — önce gönderenler
-  // kimseyi beklemeden serbestçe seçim yapabilir (bkz. isLastVeteranToSubmit). ---
+  // --- Hafta içi kapsama: her gün en az 1 kişi 20:00'a kadar kalmalı
+  // (LATE ya da EXTRA seçimi, ikisi de 20:00'da bitiyor). Talepler
+  // bağımsız gönderildiği için bu kontrol sadece o haftanın SON talebini
+  // gönderen kişiye uygulanır — önce gönderenler kimseyi beklemeden
+  // serbestçe seçim yapabilir (bkz. isLastVeteranToSubmit). ---
   if (await isLastVeteranToSubmit(weekStart, session.employeeId)) {
-    const lateConflicts = await getLateConflictMap(weekStart, session.employeeId, "VETERAN");
+    const closingCovered = await getClosingCoveredDays(weekStart, session.employeeId, "VETERAN");
     const uncoveredDays: string[] = shifts
-      .map((shift, i) => (shift !== "LATE" && !lateConflicts[i] ? WEEKDAY_NAMES_TR[i] : null))
+      .map((shift, i) =>
+        shift !== "LATE" && shift !== "EXTRA" && !closingCovered[i] ? WEEKDAY_NAMES_TR[i] : null
+      )
       .filter((label): label is (typeof WEEKDAY_NAMES_TR)[number] => label !== null);
     if (uncoveredDays.length > 0) {
       return {
-        error: `Hafta içi her gün en az 1 kişi 11:00-20:00 çalışmalı. Şu gün(ler) için ekipten kimse bu saati seçmemiş: ${uncoveredDays.join(", ")}. Ekipte en son siz talep gönderdiğiniz için bu gün(ler) için 11:00-20:00 seçmeniz gerekiyor.`,
+        error: `Hafta içi her gün en az 1 kişi 20:00'a kadar (11:00-20:00 ya da 08:00-20:00) çalışmalı. Şu gün(ler) için ekipten kimse bu saatlerden birini seçmemiş: ${uncoveredDays.join(", ")}. Ekipte en son siz talep gönderdiğiniz için bu gün(ler) için bu saatlerden birini seçmeniz gerekiyor.`,
       };
     }
   }

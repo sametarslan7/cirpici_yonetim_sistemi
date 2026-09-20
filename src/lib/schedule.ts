@@ -253,6 +253,37 @@ export async function getLateConflictMap(
   return weekDates.map((d) => byDate.get(formatISODate(d)) ?? null);
 }
 
+/**
+ * Bir haftanın hafta içi günlerinde kapanışın (20:00'a kadar) zaten
+ * kapsanıp kapsanmadığını döndürür — hem LATE (11:00-20:00) hem de EXTRA
+ * (08:00-20:00) seçimi kapanışı kapsar, ikisi de aynı saatte biter.
+ * (bkz. [[getLateConflictMap]], sadece LATE-LATE çakışmasına bakar; bu
+ * fonksiyon ise "kapanış kapsandı mı" sorusuna cevap verir.)
+ */
+export async function getClosingCoveredDays(
+  weekStart: Date,
+  excludeEmployeeId: string,
+  role: Role
+): Promise<boolean[]> {
+  const weekDates = getWeekDates(weekStart).slice(0, 5);
+  const entries = await prisma.dayEntry.findMany({
+    where: {
+      date: { in: weekDates },
+      shift: { in: ["LATE", "EXTRA"] },
+      isSaturday: false,
+      weeklyRequest: {
+        employeeId: { not: excludeEmployeeId },
+        status: { in: ["PENDING", "APPROVED"] },
+        employee: { role },
+      },
+    },
+    select: { date: true },
+  });
+
+  const coveredDates = new Set(entries.map((e) => formatISODate(e.date)));
+  return weekDates.map((d) => coveredDates.has(formatISODate(d)));
+}
+
 function shiftTime(shift: ShiftType): string {
   switch (shift) {
     case "NORMAL":
